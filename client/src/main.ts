@@ -42,9 +42,9 @@ const remotes=new Map<string,THREE.Mesh>(),keys=new Set<string>();
 let active=false,paused=false,locked=false,yaw=0,pitch=0,playerX=0,playerZ=12,feetY=0,verticalVelocity=0,onGround=true;
 let lookPointer:number|null=null,lastMouseX=0,lastMouseY=0,joyX=0,joyY=0,stickPointer=-1;
 let puzzleMode:"maze"|"cipher"|null=null,mazeGrid:number[][]=[],mazeRow=1,mazeCol=1,codeInput="";
-let toastTimer=0,previousFrameTime=performance.now(),lastUiSecond=-1;
+let toastTimer=0,previousFrameTime=performance.now(),lastUiSecond=-1,lastHazardAt=0;
 
-function elapsedSeconds(){return elapsedBase+(active&&sessionStartedAt?Math.max(0,Math.floor((Date.now()-sessionStartedAt)/1000)):0);}
+function elapsedSeconds(){return elapsedBase+(active&&!paused&&sessionStartedAt?Math.max(0,Math.floor((Date.now()-sessionStartedAt)/1000)):0);}
 function elapsedText(){const s=elapsedSeconds();return String(Math.floor(s/60)).padStart(2,"0")+":"+String(s%60).padStart(2,"0");}
 function saveRun(){save.elapsedSeconds=elapsedSeconds();try{localStorage.setItem("scotomaphobia-run-v1",JSON.stringify(save));}catch{status.textContent="LOCAL SAVE UNAVAILABLE";}}
 function has(id:string){return save.collected.includes(id);}
@@ -239,7 +239,12 @@ document.addEventListener("pointerlockchange",()=>locked=document.pointerLockEle
 document.addEventListener("mousemove",e=>{if(active&&!paused&&locked&&!puzzleMode){yaw-=e.movementX*.0022;pitch=THREE.MathUtils.clamp(pitch-e.movementY*.0022,-1.18,1.18);}});
 renderer.domElement.addEventListener("click",()=>{if(active&&!paused&&innerWidth>700&&!locked&&!puzzleMode)renderer.domElement.requestPointerLock?.();});
 document.addEventListener("keydown",e=>{
-  if(e.code==="Escape"){if(puzzleMode){closePuzzle();e.preventDefault();return;}if(active&&!save.completed){paused=!paused;pauseScreen.classList.toggle("visible",paused);if(paused&&document.pointerLockElement)document.exitPointerLock();else if(!paused&&innerWidth>700)renderer.domElement.requestPointerLock?.();}return;}
+  if(e.code==="Escape"){if(puzzleMode){closePuzzle();e.preventDefault();return;}if(active&&!save.completed){
+    if(!paused){elapsedBase=elapsedSeconds();sessionStartedAt=0;saveRun();}
+    else sessionStartedAt=Date.now();
+    paused=!paused;pauseScreen.classList.toggle("visible",paused);
+    if(paused&&document.pointerLockElement)document.exitPointerLock();else if(!paused&&innerWidth>700)renderer.domElement.requestPointerLock?.();
+  }return;}
   if(e.code==="KeyE"||e.code==="Enter"){if(!puzzleMode)interact();return;}
   if(e.code==="Space"&&!e.repeat)keys.add("jump-pressed");keys.add(e.code);
 });
@@ -283,6 +288,11 @@ function frame(now:number){
     if(!world.colliders.some(c=>c.intersectsBox(boxFor(nextX,playerZ))))playerX=nextX;
     if(!world.colliders.some(c=>c.intersectsBox(boxFor(playerX,nextZ))))playerZ=nextZ;
     if(keys.has("jump-pressed")){if(onGround){verticalVelocity=7.25;onGround=false;}keys.delete("jump-pressed");}
+    const hazard=world.hazards.find(h=>playerX>=h.minX&&playerX<=h.maxX&&playerZ>=h.minZ&&playerZ<=h.maxZ);
+    if(hazard&&now-lastHazardAt>1300){
+      lastHazardAt=now;playerX=hazard.targetX;playerZ=hazard.targetZ;feetY=0;verticalVelocity=0;onGround=true;
+      camera.position.set(playerX,feetY+1.65,playerZ);toast(hazard.message);
+    }
     const ground=floorAt(playerX,playerZ);if(ground===undefined&&onGround){onGround=false;verticalVelocity=-.5;}
     verticalVelocity-=18*dt;feetY+=verticalVelocity*dt;
     if(ground!==undefined&&feetY<=ground&&verticalVelocity<=0){feetY=ground;verticalVelocity=0;onGround=true;}else onGround=false;

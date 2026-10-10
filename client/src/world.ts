@@ -3,17 +3,18 @@ import * as THREE from "three";
 export type LayerId = 1 | 2;
 export type ItemKind = "relay" | "gate" | "maze" | "checkpoint" | "layer-exit" | "crystal" | "clue" | "cipher" | "finish";
 export type FloorRect = { minX:number; maxX:number; minZ:number; maxZ:number; y:number };
+export type HazardZone = { id:string; minX:number; maxX:number; minZ:number; maxZ:number; targetX:number; targetZ:number; message:string };
 export type WorldItem = {
   id:string; label:string; kind:ItemKind; position:THREE.Vector3; radius:number;
   description:string; object:THREE.Group; blocker?:THREE.Box3; leaf?:THREE.Object3D; digit?:number;
 };
 export type BuiltWorld = {
-  root:THREE.Group; layer:LayerId; colliders:THREE.Box3[]; floors:FloorRect[];
+  root:THREE.Group; layer:LayerId; colliders:THREE.Box3[]; floors:FloorRect[]; hazards:HazardZone[];
   items:WorldItem[]; spawn:THREE.Vector3; stalker?:THREE.Group;
 };
 
 export function buildWorld(layer:LayerId):BuiltWorld {
-  const root=new THREE.Group(),colliders:THREE.Box3[]=[],floors:FloorRect[]=[],items:WorldItem[]=[];
+  const root=new THREE.Group(),colliders:THREE.Box3[]=[],floors:FloorRect[]=[],hazards:HazardZone[]=[],items:WorldItem[]=[];
   const materials=new Map<string,THREE.MeshStandardMaterial>();
   const mat=(c:string,e?:string,i=0.35)=>{
     const k=c+"|"+(e||"")+"|"+i;let m=materials.get(k);
@@ -31,6 +32,19 @@ export function buildWorld(layer:LayerId):BuiltWorld {
   const lamp=(x:number,y:number,z:number,c:string,p=1.8,r=11)=>{
     const orb=new THREE.Mesh(new THREE.SphereGeometry(0.15,8,8),mat(c,c,1.8));orb.position.set(x,y,z);root.add(orb);
     const light=new THREE.PointLight(c,p,r,1.8);light.position.set(x,y,z);root.add(light);
+  };
+  const firepit=(id:string,x:number,z:number,targetX:number,targetZ:number)=>{
+    const base=new THREE.Mesh(new THREE.CylinderGeometry(1.15,1.32,.16,16),mat("#3a2820","#9e3d1c",.8));
+    base.position.set(x,.04,z);root.add(base);
+    const ring=new THREE.Mesh(new THREE.TorusGeometry(1.05,.095,8,22),mat("#b65b2a","#e15b21",1.5));
+    ring.rotation.x=Math.PI/2;ring.position.set(x,.16,z);root.add(ring);
+    for(let i=0;i<3;i++){
+      const flame=new THREE.Mesh(new THREE.ConeGeometry(.25+i*.04,.9+i*.18,7),mat(i===1?"#ffc46b":"#e65d25",i===1?"#ffae35":"#f04417",1.8));
+      flame.position.set(x+(i-1)*.38,.62+(i===1?.12:0),z+(i%2?-.08:.1));root.add(flame);
+    }
+    lamp(x,1,z,"#f16a28",2.4,7);
+    hazards.push({id,minX:x-1.05,maxX:x+1.05,minZ:z-1.05,maxZ:z+1.05,targetX,targetZ,
+      message:"The firepit folds space around you and throws you somewhere else."});
   };
   const rock=(x:number,y:number,z:number,sx:number,sy:number,sz:number,c:string)=>{
     const o=new THREE.Mesh(new THREE.DodecahedronGeometry(1,1),mat(c));o.position.set(x,y,z);o.scale.set(sx,sy,sz);o.rotation.y=(x+z)*0.03;o.castShadow=true;root.add(o);
@@ -114,7 +128,7 @@ export function buildWorld(layer:LayerId):BuiltWorld {
     const head=new THREE.Mesh(new THREE.SphereGeometry(.36,12,10),mat("#050606","#101b1d",.5));head.position.y=2;stalker.add(head);
     for(const side of [-1,1]){const eye=new THREE.Mesh(new THREE.SphereGeometry(.065,8,8),mat("#b7e8e6","#7ee8e2",2.2));eye.position.set(side*.14,2.03,-.31);stalker.add(eye);const leg=new THREE.Mesh(new THREE.CylinderGeometry(.13,.17,.9,6),mat("#070909"));leg.position.set(side*.2,.28,0);stalker.add(leg);}
     stalker.visible=false;
-    return {root,layer,colliders,floors,items,spawn:new THREE.Vector3(0,1.65,12),stalker};
+    return {root,layer,colliders,floors,hazards,items,spawn:new THREE.Vector3(0,1.65,12),stalker};
   }
 
   floor(0,-13,102,101,"#252a2d");
@@ -134,6 +148,11 @@ export function buildWorld(layer:LayerId):BuiltWorld {
   floor(0,-47,30,8,"#321c1f");
   for(let i=0;i<7;i++)box(-12+i*4,.06,-47,.11,.1,7,"#8f252c",false,"#c32835");
   for(const z of [-44,-50]){lamp(-13,1.4,z,"#d63c3c",1.4,10);lamp(13,1.4,z,"#d63c3c",1.4,10);}
+  // These unmistakable ember pads act as the layer's teleport hazards.
+  firepit("ember-well-a",-10,-10,25,-28);
+  firepit("ember-well-b",10,-25,-30,0);
+  firepit("ember-well-c",-30,-45,20,10);
+  firepit("ember-well-d",30,-48,-4,-15);
   const crystalPositions:[number,number][]=[[-28,5],[28,7],[-40,-12],[40,-18],[-17,-39],[16,-38],[5,-30]];
   crystalPositions.forEach((p,i)=>item("l2-crystal-"+(i+1),"Pale crystal "+(i+1),"crystal",p[0],p[1],"#9ad7d3","A pale crystal resonates with the chamber. Collect all seven.",2.8));
   item("l2-clue-1","First inscription","clue",-22,-17,"#d9e4c9","FIRST MARK: 2. The first digit is two.",3,2);
@@ -148,5 +167,5 @@ export function buildWorld(layer:LayerId):BuiltWorld {
   const face=new THREE.Mesh(new THREE.SphereGeometry(.53,12,10),mat("#010202"));face.position.y=2.7;stalker.add(face);
   for(const side of [-1,1]){const eye=new THREE.Mesh(new THREE.SphereGeometry(.09,8,8),mat("#d4ffed","#86f3ca",2.4));eye.position.set(side*.2,2.72,-.46);stalker.add(eye);}
   stalker.visible=false;lamp(0,4,-32,"#d6eee0",1.3,17);
-  return {root,layer,colliders,floors,items,spawn:new THREE.Vector3(0,1.65,12),stalker};
+  return {root,layer,colliders,floors,hazards,items,spawn:new THREE.Vector3(0,1.65,12),stalker};
 }
