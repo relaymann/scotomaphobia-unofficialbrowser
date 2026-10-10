@@ -1,35 +1,299 @@
-import * as THREE from 'three';
-import { io } from 'socket.io-client';
-import './style.css';
-const root=document.querySelector<HTMLDivElement>('#scene')!;
-const intro=document.querySelector<HTMLElement>('#intro')!;
-const hud=document.querySelector<HTMLElement>('#hud')!;
-const prompt=document.querySelector<HTMLElement>('#prompt')!;
-const status=document.querySelector<HTMLElement>('#status')!;
-const objective=document.querySelector<HTMLElement>('#objective')!;
-const scene=new THREE.Scene();scene.background=new THREE.Color('#101510');scene.fog=new THREE.FogExp2('#101510',.033);
-const camera=new THREE.PerspectiveCamera(74,innerWidth/innerHeight,.08,180);camera.rotation.order='YXZ';
-const renderer=new THREE.WebGLRenderer({antialias:innerWidth>800,powerPreference:'high-performance'});renderer.setPixelRatio(Math.min(devicePixelRatio,innerWidth<700?1.3:1.7));renderer.setSize(innerWidth,innerHeight);renderer.toneMapping=THREE.ACESFilmicToneMapping;root.appendChild(renderer.domElement);
-scene.add(new THREE.HemisphereLight('#aab8ac','#19140f',.7));const moon=new THREE.DirectionalLight('#bdcabe',1.1);moon.position.set(-10,22,7);scene.add(moon);
-const material=(c:string)=>new THREE.MeshStandardMaterial({color:c,roughness:1});
-const ground=new THREE.Mesh(new THREE.PlaneGeometry(200,200),material('#303a2e'));ground.rotation.x=-Math.PI/2;ground.position.y=-.2;scene.add(ground);
-const wall=material('#4b473c'),wood=material('#292b25'),dark=material('#121511');const colliders:THREE.Box3[]=[];
-function block(x:number,y:number,z:number,sx:number,sy:number,sz:number,m:THREE.Material,solid=false){const o=new THREE.Mesh(new THREE.BoxGeometry(sx,sy,sz),m);o.position.set(x,y,z);o.castShadow=true;o.receiveShadow=true;scene.add(o);if(solid)colliders.push(new THREE.Box3().setFromObject(o));return o}
-for(let i=0;i<24;i++){const z=7-i*3.5;for(const side of [-1,1]){const rock=new THREE.Mesh(new THREE.DodecahedronGeometry(1),wall);rock.position.set(side*(7+(i%3)*.5),1.1+(i%3)*.35,z);rock.scale.set(2.7,2.2,3.8);scene.add(rock)}}
-for(let i=0;i<8;i++)block((i%2?1:-1)*(3.5+(i%3)*.6),.12,-8-i*2.3,2.6,.25,2.4,wall);
-for(let i=0;i<7;i++)block(0,.25,-25-i*1.3,3.2,.28,1.35,wood);
-block(-1.55,.8,-28,.16,1.1,10,wood,true);block(1.55,.8,-28,.16,1.1,10,wood,true);
-block(0,1.6,-43,8,3.2,.5,wood,true);block(-4,1.6,-39.2,.5,3.2,8,wood,true);block(4,1.6,-39.2,.5,3.2,8,wood,true);block(0,3.3,-39.2,8.4,.4,8.4,dark,true);block(0,1.2,-35.1,2.1,2.4,.2,dark,true);
-const glow=new THREE.MeshStandardMaterial({color:'#b6532c',emissive:'#e15c25',emissiveIntensity:2});for(const [x,y,z] of [[-2,1.8,-13],[2,1.8,-23],[0,2,-34],[0,1.8,-46]]){const bulb=new THREE.Mesh(new THREE.SphereGeometry(.14,8,6),glow);bulb.position.set(x,y,z);scene.add(bulb);const l=new THREE.PointLight('#d56d3a',2.2,8);l.position.set(x,y,z);scene.add(l)}
-const player={p:new THREE.Vector3(0,1.65,5),yaw:0,pitch:0};camera.position.copy(player.p);const keys=new Set<string>();let active=false,locked=false;let mx=0,my=0,joyX=0,joyY=0,stickId=-1;
-let socket:ReturnType<typeof io>|undefined;const remotes=new Map<string,THREE.Mesh>();
-function connect(){const url=(import.meta.env.VITE_SERVER_URL as string|undefined)?.trim();if(!url){status.textContent='OFFLINE MODE';return}socket=io(url,{transports:['websocket','polling'],timeout:7000});socket.on('connect',()=>status.textContent='CONNECTED');socket.on('disconnect',()=>status.textContent='RECONNECTING');socket.on('connect_error',()=>status.textContent='OFFLINE MODE');socket.on('players:state',(list:{id:string;x:number;y:number;z:number}[])=>{const seen=new Set<string>();for(const p of list){if(p.id===socket?.id)continue;seen.add(p.id);let mesh=remotes.get(p.id);if(!mesh){mesh=new THREE.Mesh(new THREE.CapsuleGeometry(.35,1,4,8),material('#b9b9ad'));scene.add(mesh);remotes.set(p.id,mesh)}mesh.position.set(p.x,p.y-.65,p.z)}for(const [id,m] of remotes)if(!seen.has(id)){scene.remove(m);m.geometry.dispose();remotes.delete(id)}})}
-function start(){active=true;intro.classList.add('hidden');hud.classList.add('visible');connect();if(innerWidth>700)renderer.domElement.requestPointerLock?.()}
-document.querySelector('#start')!.addEventListener('click',start);document.addEventListener('pointerlockchange',()=>locked=document.pointerLockElement===renderer.domElement);document.addEventListener('mousemove',e=>{if(active&&locked){player.yaw-=e.movementX*.0022;player.pitch=THREE.MathUtils.clamp(player.pitch-e.movementY*.0022,-1.2,1.2)}});
-document.addEventListener('keydown',e=>keys.add(e.code));document.addEventListener('keyup',e=>keys.delete(e.code));renderer.domElement.addEventListener('click',()=>{if(active&&innerWidth>700&&!locked)renderer.domElement.requestPointerLock?.()});
-const stick=document.querySelector<HTMLElement>('#stick')!,knob=stick.querySelector('i')!;stick.addEventListener('pointerdown',e=>{stickId=e.pointerId;stick.setPointerCapture(e.pointerId)});stick.addEventListener('pointermove',e=>{if(e.pointerId!==stickId)return;const r=stick.getBoundingClientRect();joyX=THREE.MathUtils.clamp((e.clientX-r.left-r.width/2)/(r.width*.38),-1,1);joyY=THREE.MathUtils.clamp((e.clientY-r.top-r.height/2)/(r.height*.38),-1,1);knob.style.transform=`translate(${joyX*24}px,${joyY*24}px)`});function release(e:PointerEvent){if(e.pointerId===stickId){stickId=-1;joyX=joyY=0;knob.style.transform=''}}stick.addEventListener('pointerup',release);stick.addEventListener('pointercancel',release);
-renderer.domElement.addEventListener('pointerdown',e=>{if(e.pointerType==='touch'){mx=e.clientX;my=e.clientY}});renderer.domElement.addEventListener('pointermove',e=>{if(e.pointerType==='touch'&&active&&e.buttons&&e.clientX>innerWidth*.36){player.yaw-=(e.clientX-mx)*.004;player.pitch=THREE.MathUtils.clamp(player.pitch-(e.clientY-my)*.004,-1.1,1.1);mx=e.clientX;my=e.clientY}});
-function interact(){if(player.p.distanceTo(new THREE.Vector3(0,1.3,-35.7))<3){objective.textContent='Entrance reached. Further progression is not implemented yet.';prompt.textContent='PROTOTYPE END'}}
-document.querySelector('#interact')!.addEventListener('pointerdown',interact);document.addEventListener('keydown',e=>{if(e.code==='KeyE'||e.code==='Enter')interact()});
-let prev=performance.now();function frame(now:number){requestAnimationFrame(frame);const dt=Math.min((now-prev)/1000,.05);prev=now;if(active){const f=new THREE.Vector3(-Math.sin(player.yaw),0,-Math.cos(player.yaw)),r=new THREE.Vector3(Math.cos(player.yaw),0,-Math.sin(player.yaw)),d=new THREE.Vector3();if(keys.has('KeyW')||keys.has('ArrowUp'))d.add(f);if(keys.has('KeyS')||keys.has('ArrowDown'))d.sub(f);if(keys.has('KeyD')||keys.has('ArrowRight'))d.add(r);if(keys.has('KeyA')||keys.has('ArrowLeft'))d.sub(r);d.addScaledVector(r,joyX).addScaledVector(f,-joyY);if(d.lengthSq())d.normalize().multiplyScalar(4.1*dt);const next=player.p.clone().add(d);const box=new THREE.Box3(new THREE.Vector3(next.x-.3,.1,next.z-.3),new THREE.Vector3(next.x+.3,2,next.z+.3));if(!colliders.some(c=>c.intersectsBox(box)))player.p.copy(next);camera.position.copy(player.p);camera.rotation.set(player.pitch,player.yaw,0,'YXZ');prompt.textContent=player.p.distanceTo(new THREE.Vector3(0,1.3,-35.7))<3?'[E] Inspect entrance':'';if(socket?.connected)socket.emit('player:move',{x:player.p.x,y:player.p.y,z:player.p.z,yaw:player.yaw})}renderer.render(scene,camera)}requestAnimationFrame(frame);
-addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight);renderer.setPixelRatio(Math.min(devicePixelRatio,innerWidth<700?1.3:1.7))});
+import * as THREE from "three";
+import { io } from "socket.io-client";
+import "./style.css";
+import { buildWorld, type BuiltWorld, type LayerId, type WorldItem } from "./world";
+type Checkpoint={layer:LayerId;x:number;y:number;z:number};
+type RunSave={version:1;layer:LayerId;collected:string[];openedGates:string[];mazeSolved:boolean;codeSolved:boolean;clues:Record<string,number>;checkpoint:Checkpoint;completed:boolean;deaths:number;startedAt:number;elapsedSeconds:number};
+type SharedEvent={type:"collect"|"gate"|"maze"|"code"|"checkpoint"|"complete";id:string;layer:LayerId;digit?:number;checkpoint?:Checkpoint};
+
+const root=document.querySelector<HTMLDivElement>("#scene")!,intro=document.querySelector<HTMLElement>("#intro")!,hud=document.querySelector<HTMLElement>("#hud")!;
+const startButton=document.querySelector<HTMLButtonElement>("#start")!,status=document.querySelector<HTMLElement>("#status")!,objective=document.querySelector<HTMLElement>("#objective")!;
+const objectiveList=document.querySelector<HTMLElement>("#objectiveList")!,prompt=document.querySelector<HTMLElement>("#prompt")!,toastBox=document.querySelector<HTMLElement>("#toast")!;
+const overlay=document.querySelector<HTMLElement>("#puzzleOverlay")!,puzzleTitle=document.querySelector<HTMLElement>("#puzzleTitle")!,puzzleDescription=document.querySelector<HTMLElement>("#puzzleDescription")!;
+const puzzleBody=document.querySelector<HTMLElement>("#puzzleBody")!,puzzleHint=document.querySelector<HTMLElement>("#puzzleHint")!,pauseScreen=document.querySelector<HTMLElement>("#pauseScreen")!;
+const endScreen=document.querySelector<HTMLElement>("#endScreen")!,timerLabel=document.querySelector<HTMLElement>("#timer")!,layerLabel=document.querySelector<HTMLElement>("#layerLabel")!;
+const interactButton=document.querySelector<HTMLButtonElement>("#interact")!;
+const scene=new THREE.Scene();scene.background=new THREE.Color("#111713");scene.fog=new THREE.FogExp2("#111713",0.018);
+const camera=new THREE.PerspectiveCamera(74,innerWidth/innerHeight,0.08,220);camera.rotation.order="YXZ";
+const renderer=new THREE.WebGLRenderer({antialias:innerWidth>800,powerPreference:"high-performance"});
+renderer.setPixelRatio(Math.min(devicePixelRatio,innerWidth<700?1.25:1.6));renderer.setSize(innerWidth,innerHeight);renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=1.12;root.appendChild(renderer.domElement);
+scene.add(new THREE.HemisphereLight("#9caea7","#151514",0.27));
+const moon=new THREE.DirectionalLight("#a9b9ac",0.32);moon.position.set(-10,22,7);scene.add(moon);
+
+const freshSave=():RunSave=>({version:1,layer:1,collected:[],openedGates:[],mazeSolved:false,codeSolved:false,clues:{},checkpoint:{layer:1,x:0,y:1.65,z:12},completed:false,deaths:0,startedAt:Date.now(),elapsedSeconds:0});
+function readSave():RunSave{
+  try{
+    const raw=localStorage.getItem("scotomaphobia-run-v1");if(!raw)return freshSave();
+    const p=JSON.parse(raw) as Partial<RunSave>;
+    if(p.version!==1||(p.layer!==1&&p.layer!==2)||!Array.isArray(p.collected)||!Array.isArray(p.openedGates))return freshSave();
+    const base=freshSave(),cp=p.checkpoint;
+    const checkpoint=cp&&(cp.layer===1||cp.layer===2)&&Number.isFinite(cp.x)&&Number.isFinite(cp.y)&&Number.isFinite(cp.z)?{layer:cp.layer,x:cp.x,y:cp.y,z:cp.z}:base.checkpoint;
+    return {...base,...p,version:1,layer:p.layer,collected:p.collected.filter((v):v is string=>typeof v==="string").slice(0,128),
+      openedGates:p.openedGates.filter((v):v is string=>typeof v==="string").slice(0,32),clues:p.clues&&typeof p.clues==="object"?p.clues:{},checkpoint,
+      mazeSolved:p.mazeSolved===true,codeSolved:p.codeSolved===true,completed:p.completed===true,
+      deaths:Number.isFinite(p.deaths)?Math.max(0,Math.min(9999,Number(p.deaths))):0,
+      elapsedSeconds:Number.isFinite(p.elapsedSeconds)?Math.max(0,Math.min(864000,Number(p.elapsedSeconds))):0,
+      startedAt:Number.isFinite(p.startedAt)?Number(p.startedAt):Date.now()};
+  }catch{return freshSave();}
+}
+let save=readSave(),elapsedBase=save.elapsedSeconds,sessionStartedAt=0,world:BuiltWorld|null=null;
+let socket:ReturnType<typeof io>|undefined;
+const remotes=new Map<string,THREE.Mesh>(),keys=new Set<string>();
+let active=false,paused=false,locked=false,yaw=0,pitch=0,playerX=0,playerZ=12,feetY=0,verticalVelocity=0,onGround=true;
+let lookPointer:number|null=null,lastMouseX=0,lastMouseY=0,joyX=0,joyY=0,stickPointer=-1;
+let puzzleMode:"maze"|"cipher"|null=null,mazeGrid:number[][]=[],mazeRow=1,mazeCol=1,codeInput="";
+let toastTimer=0,previousFrameTime=performance.now(),lastUiSecond=-1;
+
+function elapsedSeconds(){return elapsedBase+(active&&sessionStartedAt?Math.max(0,Math.floor((Date.now()-sessionStartedAt)/1000)):0);}
+function elapsedText(){const s=elapsedSeconds();return String(Math.floor(s/60)).padStart(2,"0")+":"+String(s%60).padStart(2,"0");}
+function saveRun(){save.elapsedSeconds=elapsedSeconds();try{localStorage.setItem("scotomaphobia-run-v1",JSON.stringify(save));}catch{status.textContent="LOCAL SAVE UNAVAILABLE";}}
+function has(id:string){return save.collected.includes(id);}
+function addUnique(list:string[],value:string){if(!list.includes(value))list.push(value);}
+function removeCollider(c:THREE.Box3|undefined){if(!c||!world)return;const i=world.colliders.indexOf(c);if(i>=0)world.colliders.splice(i,1);}
+function toast(message:string){toastBox.textContent=message;toastBox.classList.add("visible");window.clearTimeout(toastTimer);toastTimer=window.setTimeout(()=>toastBox.classList.remove("visible"),2700);}
+function disposeWorld(){
+  if(!world)return;scene.remove(world.root);
+  world.root.traverse(obj=>{const mesh=obj as THREE.Mesh;if(mesh.geometry)mesh.geometry.dispose();if(mesh.material){if(Array.isArray(mesh.material))mesh.material.forEach(m=>m.dispose());else mesh.material.dispose();}});
+  world=null;
+  for(const mesh of remotes.values()){scene.remove(mesh);mesh.geometry.dispose();if(Array.isArray(mesh.material))mesh.material.forEach(m=>m.dispose());else mesh.material.dispose();}remotes.clear();
+}
+function syncWorldVisuals(){
+  if(!world)return;
+  for(const item of world.items){
+    if(has(item.id)&&item.kind!=="checkpoint"&&item.kind!=="maze"&&item.kind!=="cipher")item.object.visible=false;
+    if((item.kind==="gate"||item.kind==="finish")&&save.openedGates.includes(item.id)){removeCollider(item.blocker);if(item.leaf)item.leaf.visible=false;}
+  }
+  if(world.stalker)world.stalker.visible=world.layer===1?save.mazeSolved:save.collected.filter(x=>x.startsWith("l2-crystal-")).length>=3;
+}
+function installWorld(layer:LayerId,restoreCheckpoint=true){
+  disposeWorld();world=buildWorld(layer);scene.add(world.root);save.layer=layer;
+  scene.background=new THREE.Color(layer===1?"#111713":"#080d0f");scene.fog=new THREE.FogExp2(layer===1?"#111713":"#080d0f",layer===1?0.018:0.024);
+  const cp=restoreCheckpoint&&save.checkpoint.layer===layer?save.checkpoint:world.spawn;
+  playerX=cp.x;playerZ=cp.z;feetY=cp.y-1.65;verticalVelocity=0;onGround=true;yaw=0;pitch=0;
+  syncWorldVisuals();camera.position.set(playerX,feetY+1.65,playerZ);camera.rotation.set(pitch,yaw,0,"YXZ");updateHud();saveRun();
+}
+function countPrefix(prefix:string){return save.collected.filter(id=>id.startsWith(prefix)).length;}
+function updateHud(){
+  if(!world)return;layerLabel.textContent=world.layer===1?"LAYER 1  /  THE THRESHOLD":"LAYER 2  /  THE MONOLITH FIELD";
+  if(save.completed)objective.textContent="The way out is open. The expedition is complete.";
+  else if(world.layer===1){
+    if(countPrefix("l1-relay-")<3)objective.textContent="Recover three field relays along the broken mountain approach.";
+    else if(!save.openedGates.includes("l1-bunker-gate"))objective.textContent="Return to the sealed bunker door and open its relay lock.";
+    else if(!save.mazeSolved)objective.textContent="Trace the maintenance maze to release the flooded passage.";
+    else objective.textContent="Cross the flooded chamber by jumping between stone platforms. Reach the descent gate.";
+  }else{
+    if(countPrefix("l2-crystal-")<7)objective.textContent="Find all seven pale crystals scattered around the monolith field.";
+    else if(countPrefix("l2-clue-")<4)objective.textContent="Read all four inscriptions to learn the seal code.";
+    else if(!save.codeSolved)objective.textContent="Enter the four-digit inscription code at the seal terminal.";
+    else objective.textContent="Reach the final gate and escape the monolith field.";
+  }
+  const tasks=world.layer===1?[
+    {done:countPrefix("l1-relay-")>=3,text:"Field relays  "+countPrefix("l1-relay-")+"/3"},
+    {done:save.openedGates.includes("l1-bunker-gate"),text:"Bunker seal opened"},
+    {done:save.mazeSolved,text:"Maintenance maze solved"},
+    {done:save.openedGates.includes("l1-maze-gate"),text:"Flood lock released"},
+    {done:save.layer===2,text:"Descent to Layer 2"}
+  ]:[
+    {done:countPrefix("l2-crystal-")>=7,text:"Pale crystals  "+countPrefix("l2-crystal-")+"/7"},
+    {done:countPrefix("l2-clue-")>=4,text:"Inscriptions  "+countPrefix("l2-clue-")+"/4"},
+    {done:save.codeSolved,text:"Seal code accepted"},{done:save.completed,text:"Escape the monolith field"}
+  ];
+  objectiveList.innerHTML=tasks.map(t=>"<div class=\"task "+(t.done?"done":"")+"\"><i>"+(t.done?"✓":"·")+"</i><span>"+t.text+"</span></div>").join("");
+  startButton.textContent=save.completed?"START A NEW EXPEDITION":(save.collected.length||save.mazeSolved||save.layer===2?"CONTINUE EXPEDITION":"ENTER THE WOODS ↗");
+}
+function floorAt(x:number,z:number):number|undefined{if(!world)return undefined;let top:number|undefined;for(const f of world.floors)if(x>=f.minX&&x<=f.maxX&&z>=f.minZ&&z<=f.maxZ&&(top===undefined||f.y>top))top=f.y;return top;}
+function sendEvent(event:SharedEvent){if(socket?.connected)socket.emit("game:event",event);}
+function openGate(id:string,broadcast=true){
+  if(!world)return;const item=world.items.find(i=>i.id===id);addUnique(save.openedGates,id);
+  if(item){removeCollider(item.blocker);if(item.leaf)item.leaf.visible=false;}
+  if(broadcast)sendEvent({type:"gate",id,layer:save.layer});saveRun();updateHud();
+}
+function collectItem(item:WorldItem){
+  addUnique(save.collected,item.id);if(item.kind==="clue"&&typeof item.digit==="number")save.clues[item.id]=item.digit;
+  item.object.visible=false;sendEvent({type:"collect",id:item.id,layer:save.layer,digit:item.digit});saveRun();syncWorldVisuals();updateHud();
+}
+function activateCheckpoint(item:WorldItem){
+  save.checkpoint={layer:save.layer,x:item.position.x,y:1.65,z:item.position.z+1.1};
+  sendEvent({type:"checkpoint",id:item.id,layer:save.layer,checkpoint:save.checkpoint});saveRun();toast("Checkpoint activated. Falling will return you here.");
+}
+function applySharedEvent(event:SharedEvent){
+  if(!event||!(event.layer===1||event.layer===2)||typeof event.id!=="string")return;
+  if(event.type==="collect"){addUnique(save.collected,event.id);if(typeof event.digit==="number"&&event.digit>=1&&event.digit<=9)save.clues[event.id]=event.digit;}
+  else if(event.type==="gate")addUnique(save.openedGates,event.id);
+  else if(event.type==="maze")save.mazeSolved=true;
+  else if(event.type==="code")save.codeSolved=true;
+  else if(event.type==="checkpoint"&&event.checkpoint&&(event.checkpoint.layer===1||event.checkpoint.layer===2))save.checkpoint=event.checkpoint;
+  else if(event.type==="complete")save.completed=true;
+  if(world&&world.layer===event.layer){if(event.type==="gate"){const item=world.items.find(i=>i.id===event.id);if(item){removeCollider(item.blocker);if(item.leaf)item.leaf.visible=false;}}syncWorldVisuals();}
+  saveRun();updateHud();
+}
+function connect(){
+  const url=(import.meta.env.VITE_SERVER_URL as string|undefined)?.trim();if(!url){status.textContent="SOLO / LOCAL SAVE";return;}
+  if(socket){socket.disconnect();socket=undefined;}socket=io(url,{transports:["websocket","polling"],timeout:7000,reconnection:true});
+  socket.on("connect",()=>status.textContent="MULTIPLAYER CONNECTED");socket.on("disconnect",()=>status.textContent="RECONNECTING");socket.on("connect_error",()=>status.textContent="SOLO MODE");
+  socket.on("players:state",(list:{id:string;x:number;y:number;z:number;yaw:number;layer?:number}[])=>{
+    if(!socket)return;const seen=new Set<string>();
+    for(const p of list){if(p.id===socket.id||p.layer!==save.layer)continue;seen.add(p.id);let mesh=remotes.get(p.id);
+      if(!mesh){mesh=new THREE.Mesh(new THREE.CapsuleGeometry(.34,1,4,8),new THREE.MeshStandardMaterial({color:"#a8b9ac",roughness:.8}));scene.add(mesh);remotes.set(p.id,mesh);}
+      mesh.position.set(p.x,p.y-.8,p.z);mesh.rotation.y=p.yaw;}
+    for(const [id,mesh] of remotes)if(!seen.has(id)){scene.remove(mesh);mesh.geometry.dispose();if(Array.isArray(mesh.material))mesh.material.forEach(m=>m.dispose());else mesh.material.dispose();remotes.delete(id);}
+  });
+  socket.on("game:events",(events:SharedEvent[])=>{if(Array.isArray(events))events.forEach(applySharedEvent);});socket.on("game:event",(event:SharedEvent)=>applySharedEvent(event));
+}
+function respawn(message="You fell into the dark. Checkpoint restored."){
+  save.deaths++;playerX=save.checkpoint.x;playerZ=save.checkpoint.z;feetY=save.checkpoint.y-1.65;verticalVelocity=0;onGround=true;yaw=0;pitch=0;
+  if(world?.stalker)world.stalker.position.set(0,0,world.layer===1?-113:-35);
+  camera.position.set(playerX,feetY+1.65,playerZ);saveRun();updateHud();toast(message);
+}
+function openOverlay(title:string,description:string,body:string,mode:"maze"|"cipher"){
+  puzzleMode=mode;puzzleTitle.textContent=title;puzzleDescription.textContent=description;puzzleBody.innerHTML=body;puzzleHint.textContent="";overlay.classList.add("visible");if(document.pointerLockElement)document.exitPointerLock();
+}
+function closePuzzle(){overlay.classList.remove("visible");puzzleMode=null;puzzleBody.innerHTML="";if(active&&!paused&&innerWidth>700)renderer.domElement.requestPointerLock?.();}
+function newMaze(){
+  const size=11,grid=Array.from({length:size},()=>Array(size).fill(1)),visited=Array.from({length:5},()=>Array(5).fill(false)),directions=[[0,1],[1,0],[0,-1],[-1,0]];
+  let seed=2714;const random=()=>{seed=(seed*1664525+1013904223)>>>0;return seed/4294967296;};
+  function carve(r:number,c:number){visited[r][c]=true;grid[r*2+1][c*2+1]=0;const order=directions.slice();for(let i=order.length-1;i>0;i--){const j=Math.floor(random()*(i+1));[order[i],order[j]]=[order[j],order[i]];}
+    for(const d of order){const nr=r+d[0],nc=c+d[1];if(nr<0||nr>=5||nc<0||nc>=5||visited[nr][nc])continue;grid[r*2+1+d[0]][c*2+1+d[1]]=0;carve(nr,nc);}}
+  carve(0,0);grid[9][9]=0;return grid;
+}
+function renderMaze(){
+  const size=mazeGrid.length;let html="<div class=\"maze-grid\" style=\"grid-template-columns:repeat("+size+",minmax(0,1fr))\">";
+  for(let r=0;r<size;r++)for(let c=0;c<size;c++){
+    const start=r===1&&c===1,end=r===size-2&&c===size-2,current=r===mazeRow&&c===mazeCol,wall=mazeGrid[r][c]===1;
+    html+="<button class=\"maze-cell "+(wall?"wall":"open")+(start?" start":"")+(end?" exit":"")+(current?" current":"")+"\" data-cell=\"1\" data-r=\""+r+"\" data-c=\""+c+"\" "+(wall?"disabled":"")+">"+(start?"S":end?"E":current?"●":"")+"</button>";
+  }
+  puzzleBody.innerHTML=html+"</div><p class=\"puzzle-small\">Move one corridor at a time. Backtrack freely; walls cannot be crossed.</p>";
+}
+function openMaze(){mazeGrid=newMaze();mazeRow=1;mazeCol=1;openOverlay("MAINTENANCE MAZE","Trace the corridor from S to E. Reaching the exit releases the flooded lock.","","maze");renderMaze();}
+function openCipher(){
+  codeInput="";const list=["1","2","3","4","5","6","7","8","9","clear","0","enter"];let html="<div id=\"codeDisplay\" class=\"code-display\">_ _ _ _</div><div class=\"number-pad\">";
+  for(const key of list)html+="<button class=\"number-key "+(key==="enter"?"accent":"")+"\" data-key=\""+key+"\">"+(key==="clear"?"⌫":key==="enter"?"ENTER":key)+"</button>";
+  openOverlay("THE SEAL TERMINAL","Enter the four inscription digits in order. All seven crystals and all four inscriptions are required.",html,"cipher");
+}
+puzzleBody.addEventListener("click",event=>{
+  const target=event.target as HTMLElement,cell=target.closest<HTMLButtonElement>("[data-cell]");
+  if(cell&&puzzleMode==="maze"){
+    const r=Number(cell.dataset.r),c=Number(cell.dataset.c);if(Math.abs(r-mazeRow)+Math.abs(c-mazeCol)!==1||mazeGrid[r]?.[c]!==0)return;
+    mazeRow=r;mazeCol=c;renderMaze();
+    if(r===mazeGrid.length-2&&c===mazeGrid.length-2){save.mazeSolved=true;openGate("l1-maze-gate");if(world?.stalker)world.stalker.visible=true;
+      sendEvent({type:"maze",id:"l1-maintenance-maze",layer:1});saveRun();closePuzzle();updateHud();toast("The flooded lock releases. Something moves in the service tunnel.");}
+    return;
+  }
+  const button=target.closest<HTMLButtonElement>("[data-key]");
+  if(button&&puzzleMode==="cipher"){
+    const key=button.dataset.key;
+    if(key==="clear")codeInput=codeInput.slice(0,-1);
+    else if(key==="enter"){
+      if(codeInput==="2714"){save.codeSolved=true;openGate("l2-finish-gate");sendEvent({type:"code",id:"l2-seal-code",layer:2});saveRun();closePuzzle();updateHud();toast("The terminal accepts the code. The final gate opens.");}
+      else{puzzleHint.textContent="Incorrect sequence. Recheck the inscriptions.";codeInput="";}
+    }else if(key&&/^[0-9]$/.test(key)&&codeInput.length<4)codeInput+=key;
+    const display=document.querySelector<HTMLElement>("#codeDisplay");if(display)display.textContent=(codeInput+"____").slice(0,4).split("").join(" ");
+  }
+});
+document.querySelector("#puzzleClose")!.addEventListener("click",closePuzzle);
+function nearestItem():WorldItem|undefined{
+  if(!world)return undefined;let nearest:WorldItem|undefined,distance=Infinity;
+  for(const item of world.items){if(!item.object.visible)continue;if(item.kind==="gate"&&save.openedGates.includes(item.id))continue;
+    const d=Math.hypot(playerX-item.position.x,feetY+1.2-item.position.y,playerZ-item.position.z);if(d<item.radius&&d<distance){nearest=item;distance=d;}}
+  return nearest;
+}
+function interact(){
+  if(!active||paused||puzzleMode||save.completed||!world)return;
+  const item=nearestItem();if(!item){toast("Nothing close enough to interact with.");return;}
+  if(item.kind==="relay"||item.kind==="crystal"||item.kind==="clue"){
+    if(has(item.id)){toast("You already recovered this.");return;}if(item.kind==="clue")toast(item.description);else toast(item.kind==="crystal"?"Pale crystal recovered.":"Field relay recovered.");collectItem(item);return;}
+  if(item.kind==="gate"){
+    if(save.openedGates.includes(item.id)){toast("The way is open.");return;}
+    if(item.id==="l1-bunker-gate"){if(countPrefix("l1-relay-")<3){toast("The bunker seal needs all three field relays.");return;}openGate(item.id);toast("The bunker seal unlocks with a heavy click.");return;}
+    if(item.id==="l1-maze-gate"){if(!save.mazeSolved){toast("The maintenance maze has not released this lock.");return;}openGate(item.id);toast("The flood lock opens.");return;}
+  }
+  if(item.kind==="maze"){if(!save.openedGates.includes("l1-bunker-gate")){toast("Restore power to the bunker first.");return;}if(save.mazeSolved){toast("The maintenance maze is already solved.");return;}openMaze();return;}
+  if(item.kind==="checkpoint"){activateCheckpoint(item);return;}
+  if(item.kind==="layer-exit"){if(!save.mazeSolved||!save.openedGates.includes("l1-maze-gate")){toast("The descent gate is still sealed.");return;}save.elapsedSeconds=elapsedSeconds();elapsedBase=save.elapsedSeconds;sessionStartedAt=Date.now();changeLayer(2);return;}
+  if(item.kind==="cipher"){
+    const crystals=countPrefix("l2-crystal-"),clues=countPrefix("l2-clue-");
+    if(crystals<7){toast("The seal needs all seven pale crystals ("+crystals+"/7).");return;}
+    if(clues<4){toast("Find all four inscription marks ("+clues+"/4).");return;}if(save.codeSolved){toast("The seal code is already accepted.");return;}openCipher();return;}
+  if(item.kind==="finish"){if(!save.codeSolved){toast("The final gate is still sealed.");return;}finishRun();return;}
+}
+function changeLayer(layer:LayerId){save.layer=layer;save.checkpoint={layer,x:0,y:1.65,z:12};installWorld(layer,false);toast("The monolith field stretches into the dark.");saveRun();}
+function finishRun(){
+  save.elapsedSeconds=elapsedSeconds();elapsedBase=save.elapsedSeconds;sessionStartedAt=0;save.completed=true;active=false;paused=false;
+  sendEvent({type:"complete",id:"expedition-complete",layer:save.layer});saveRun();hud.classList.remove("visible");endScreen.classList.add("visible");
+  document.querySelector<HTMLElement>("#endStats")!.textContent="TIME  "+elapsedText()+"     FALLS  "+save.deaths;if(document.pointerLockElement)document.exitPointerLock();
+}
+startButton.addEventListener("click",()=>{
+  if(save.completed){save=freshSave();elapsedBase=0;sessionStartedAt=Date.now();installWorld(1,false);}
+  if(!sessionStartedAt){elapsedBase=save.elapsedSeconds;sessionStartedAt=Date.now();}
+  active=true;paused=false;intro.classList.add("hidden");hud.classList.add("visible");connect();updateHud();if(innerWidth>700)renderer.domElement.requestPointerLock?.();
+});
+document.querySelector("#resume")!.addEventListener("click",()=>{paused=false;pauseScreen.classList.remove("visible");if(active&&innerWidth>700)renderer.domElement.requestPointerLock?.();});
+document.querySelector("#pauseRestart")!.addEventListener("click",()=>{
+  save=freshSave();elapsedBase=0;sessionStartedAt=Date.now();active=true;paused=false;pauseScreen.classList.remove("visible");installWorld(1,false);updateHud();if(innerWidth>700)renderer.domElement.requestPointerLock?.();
+});
+document.querySelector("#replay")!.addEventListener("click",()=>{
+  save=freshSave();elapsedBase=0;sessionStartedAt=Date.now();active=true;paused=false;endScreen.classList.remove("visible");installWorld(1,false);
+  intro.classList.add("hidden");hud.classList.add("visible");updateHud();if(innerWidth>700)renderer.domElement.requestPointerLock?.();
+});
+document.addEventListener("pointerlockchange",()=>locked=document.pointerLockElement===renderer.domElement);
+document.addEventListener("mousemove",e=>{if(active&&!paused&&locked&&!puzzleMode){yaw-=e.movementX*.0022;pitch=THREE.MathUtils.clamp(pitch-e.movementY*.0022,-1.18,1.18);}});
+renderer.domElement.addEventListener("click",()=>{if(active&&!paused&&innerWidth>700&&!locked&&!puzzleMode)renderer.domElement.requestPointerLock?.();});
+document.addEventListener("keydown",e=>{
+  if(e.code==="Escape"){if(puzzleMode){closePuzzle();e.preventDefault();return;}if(active&&!save.completed){paused=!paused;pauseScreen.classList.toggle("visible",paused);if(paused&&document.pointerLockElement)document.exitPointerLock();else if(!paused&&innerWidth>700)renderer.domElement.requestPointerLock?.();}return;}
+  if(e.code==="KeyE"||e.code==="Enter"){if(!puzzleMode)interact();return;}
+  if(e.code==="Space"&&!e.repeat)keys.add("jump-pressed");keys.add(e.code);
+});
+document.addEventListener("keyup",e=>keys.delete(e.code));
+window.addEventListener("blur",()=>{keys.clear();joyX=joyY=0;stickPointer=-1;lookPointer=null;});
+window.addEventListener("pagehide",saveRun);
+const stick=document.querySelector<HTMLElement>("#stick")!,knob=stick.querySelector<HTMLElement>("i")!;
+stick.addEventListener("pointerdown",e=>{e.preventDefault();stickPointer=e.pointerId;stick.setPointerCapture(e.pointerId);});
+stick.addEventListener("pointermove",e=>{
+  if(e.pointerId!==stickPointer)return;const r=stick.getBoundingClientRect();joyX=THREE.MathUtils.clamp((e.clientX-r.left-r.width/2)/(r.width*.38),-1,1);
+  joyY=THREE.MathUtils.clamp((e.clientY-r.top-r.height/2)/(r.height*.38),-1,1);knob.style.transform="translate("+joyX*24+"px,"+joyY*24+"px)";
+});
+function releaseStick(e:PointerEvent){if(e.pointerId===stickPointer){stickPointer=-1;joyX=joyY=0;knob.style.transform="";}}
+stick.addEventListener("pointerup",releaseStick);stick.addEventListener("pointercancel",releaseStick);
+renderer.domElement.addEventListener("pointerdown",e=>{if(e.pointerType==="touch"&&active&&!paused&&e.clientX>innerWidth*.38){lookPointer=e.pointerId;lastMouseX=e.clientX;lastMouseY=e.clientY;renderer.domElement.setPointerCapture(e.pointerId);}});
+renderer.domElement.addEventListener("pointermove",e=>{
+  if(e.pointerType!=="touch"||e.pointerId!==lookPointer||paused||puzzleMode)return;
+  yaw-=(e.clientX-lastMouseX)*.004;pitch=THREE.MathUtils.clamp(pitch-(e.clientY-lastMouseY)*.004,-1.12,1.12);lastMouseX=e.clientX;lastMouseY=e.clientY;
+});
+renderer.domElement.addEventListener("pointerup",e=>{if(e.pointerId===lookPointer)lookPointer=null;});
+renderer.domElement.addEventListener("pointercancel",e=>{if(e.pointerId===lookPointer)lookPointer=null;});
+interactButton.addEventListener("pointerdown",e=>{e.preventDefault();interact();});
+function updateStalker(dt:number){
+  if(!world?.stalker||!active||paused||puzzleMode||save.completed||!world.stalker.visible)return;
+  const monster=world.stalker,dx=playerX-monster.position.x,dz=playerZ-monster.position.z,distance=Math.hypot(dx,dz);if(distance>38)return;
+  const lookX=-Math.sin(yaw),lookZ=-Math.cos(yaw),toX=monster.position.x-playerX,toZ=monster.position.z-playerZ;
+  const facing=distance>.01?(lookX*toX+lookZ*toZ)/distance:1;
+  if(facing<.48&&distance>1.7){const speed=world.layer===1?1.35:1.65;monster.position.x+=dx/distance*speed*dt;monster.position.z+=dz/distance*speed*dt;monster.rotation.y=Math.atan2(dx,dz);}
+  if(distance<1.55)respawn("Something found you. Your checkpoint is safe, for now.");
+}
+function frame(now:number){
+  requestAnimationFrame(frame);const dt=Math.min((now-previousFrameTime)/1000,.05);previousFrameTime=now;
+  if(active&&!paused&&!puzzleMode&&!save.completed&&world){
+    const forward=(keys.has("KeyW")||keys.has("ArrowUp")?1:0)-(keys.has("KeyS")||keys.has("ArrowDown")?1:0)-joyY;
+    const strafe=(keys.has("KeyD")||keys.has("ArrowRight")?1:0)-(keys.has("KeyA")||keys.has("ArrowLeft")?1:0)+joyX;
+    let dx=-Math.sin(yaw)*forward+Math.cos(yaw)*strafe,dz=-Math.cos(yaw)*forward-Math.sin(yaw)*strafe;
+    const magnitude=Math.hypot(dx,dz);if(magnitude>1){dx/=magnitude;dz/=magnitude;}
+    const speed=keys.has("ShiftLeft")||keys.has("ShiftRight")?6.1:4.25;
+    const boxFor=(x:number,z:number)=>new THREE.Box3(new THREE.Vector3(x-.3,feetY+.04,z-.3),new THREE.Vector3(x+.3,feetY+1.7,z+.3));
+    const nextX=playerX+dx*speed*dt,nextZ=playerZ+dz*speed*dt;
+    if(!world.colliders.some(c=>c.intersectsBox(boxFor(nextX,playerZ))))playerX=nextX;
+    if(!world.colliders.some(c=>c.intersectsBox(boxFor(playerX,nextZ))))playerZ=nextZ;
+    if(keys.has("jump-pressed")){if(onGround){verticalVelocity=7.25;onGround=false;}keys.delete("jump-pressed");}
+    const ground=floorAt(playerX,playerZ);if(ground===undefined&&onGround){onGround=false;verticalVelocity=-.5;}
+    verticalVelocity-=18*dt;feetY+=verticalVelocity*dt;
+    if(ground!==undefined&&feetY<=ground&&verticalVelocity<=0){feetY=ground;verticalVelocity=0;onGround=true;}else onGround=false;
+    if(feetY < -7)respawn();
+    camera.position.set(playerX,feetY+1.65,playerZ);camera.rotation.set(pitch,yaw,0,"YXZ");
+    const nearest=nearestItem();prompt.textContent=nearest?"[E]  "+nearest.label:"";
+    if(socket?.connected)socket.emit("player:move",{x:playerX,y:feetY+1.65,z:playerZ,yaw,layer:save.layer});
+    updateStalker(dt);const seconds=Math.floor(elapsedSeconds());if(seconds!==lastUiSecond){timerLabel.textContent=elapsedText();lastUiSecond=seconds;}
+    if(now%5000<40)saveRun();
+  }
+  renderer.render(scene,camera);
+}
+installWorld(save.layer,true);timerLabel.textContent=elapsedText();updateHud();requestAnimationFrame(frame);
+addEventListener("resize",()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight);renderer.setPixelRatio(Math.min(devicePixelRatio,innerWidth<700?1.25:1.6));});

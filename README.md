@@ -1,24 +1,17 @@
-# Scotomaphobia — Unofficial Browser Remake
+# Scotomaphobia — Unofficial Browser Expedition
 
-Independent browser horror exploration project inspired by the reference walkthrough. Original code and procedural placeholder assets; no Roblox assets are included.
+An independent browser horror game inspired by the supplied Layers 1–2 walkthrough. It uses original TypeScript gameplay code and procedural Three.js scenery; it does not include Roblox game assets.
 
-## Stack
-- Vite + TypeScript + Three.js browser client
-- Node.js + Express + Socket.IO realtime service
-- Supabase PostgreSQL schema for future authenticated saved progress
-- Netlify frontend; Render realtime service
+## Play loop
+- Layer 1 — The Threshold: collect three field relays, open the bunker, solve the maintenance maze, activate a checkpoint, then jump across flooded stepping stones to the descent gate.
+- Layer 2 — The Monolith Field: collect seven pale crystals, find four inscription marks, enter the four-digit seal code, and reach the final gate.
+- Horror mechanics: first-person exploration, jumping and falling, checkpoint recovery, a stalker that advances while it is not being watched, pause/restart, and local progress persistence.
+- Controls: WASD / arrows move, mouse looks, Space jumps, Shift runs, E interacts, Escape pauses. On touch screens use the joystick, drag the right side to look, and tap E.
+- Multiplayer: Socket.IO synchronizes players and shares puzzle/collectible events within the server process. Local progress is saved in the browser.
 
-## Local setup
-Node.js 22+ and npm 10+:
-```sh
-npm install
-npm run build
-```
-Run client and server separately with `npm run dev --workspace client` and `npm run dev --workspace server`.
+## Development
+Requires Node.js 22+ and npm 10+.
+Run npm install, then npm run build.
+Run the Vite client and Express server separately with npm run dev --workspace client and npm run dev --workspace server.
 
-## Hosting
-Netlify: build `npm run build:client`, publish `client/dist`.
-Render: build `npm install && npm run build:server`, start `npm run start:server`.
-Set `VITE_SERVER_URL` to the Render URL and `CLIENT_ORIGIN` to the Netlify URL. Apply the SQL migration in Supabase.
-
-This is an initial foundation/blockout, not a complete recreation. Puzzle logic, full level maps, authoritative movement, accounts, and saved-game integration remain future work. Never put service-role secrets in browser environment variables.
+This is playable campaign groundwork, not a byte-for-byte recreation. Environments, enemy behavior, puzzles, and progression will continue to be refined against the walkthrough.
