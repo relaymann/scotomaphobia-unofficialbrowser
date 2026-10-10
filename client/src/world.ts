@@ -102,9 +102,9 @@ export function buildWorld(layer:LayerId):BuiltWorld {
 
   if(layer===1){
     // Mistbound island surface: spawn, house, broken bridge, graveyard, central white door and cave elevator.
-    floor(-10,3,42,50,"#3b4435");floor(18,15,18,22,"#394234");
+    floor(-10,3,42,50,"#3b4435");floor(18,18,18,16,"#394234");
     floor(0,-17,25,25,"#42473a");floor(-18,-25,26,22,"#393f32");
-    floor(0,-38,11,22,"#343d32");floor(0,-53,26,12,"#343a31");
+    floor(0,-26,11,8,"#343d32");floor(0,-53,26,12,"#343a31");
     floor(0,-70,17,28,"#222924");floor(0,-87,16,12,"#1d2421");
     const moonA=new THREE.Mesh(new THREE.SphereGeometry(2.1,18,14),new THREE.MeshBasicMaterial({color:"#c9d2ce"}));
     moonA.position.set(-38,29,-68);root.add(moonA);
@@ -120,7 +120,7 @@ export function buildWorld(layer:LayerId):BuiltWorld {
     box(-18,1.65,-17.7,12,.35,.5,"#503f2e");
     box(-24,1.65,-24,.45,3.3,14,"#55432f",true);box(-12,1.65,-24,.45,3.3,14,"#55432f",true);
     box(-18,3.3,-24,12.4,.4,14.6,"#332e24");
-    box(-21,1.65,-31,6,3.3,.45,"#55432f",true);box(-15,1.65,-31,6,3.3,.45,"#55432f",true);
+    box(-21.5,1.65,-31,3,3.3,.45,"#55432f",true);box(-14.5,1.65,-31,3,3.3,.45,"#55432f",true);
     for(let i=0;i<5;i++)box(-23.7+i*2.85,1.7,-17.1,.08,2.8,.08,"#77583c");
     box(-18,1.15,-22,3.2,.22,1.4,"#5b4630",true);box(-18,1.68,-22,2.2,.85,.12,"#6d4d31");
     const handle=new THREE.Mesh(new THREE.CylinderGeometry(.055,.075,.95,7),mat("#6b4a30"));handle.rotation.z=Math.PI/2;handle.position.set(-17.4,1.85,-22);root.add(handle);
@@ -159,7 +159,7 @@ export function buildWorld(layer:LayerId):BuiltWorld {
       ["l1-note-5","Journal note 5",24,-41,-3,"There are few bodies that return, and fewer places to bury them, lest we be walking on our dead."],
       ["l1-note-6","Journal note 6",9,-49,0,"The news was in calamity. Nobody knew what to do, or who to pray to. It was as if we were abandoned by god."],
       ["l1-note-7","Journal note 7",-18,-22,0,"It was here when we arrived. I'm unsure how the fire remains lit, or where the lamp receives its power, but we're not dismantling it to bring it with us. Where did the wood come from if there were no trees?"],
-      ["l1-note-8","Journal note 8",19,-42,-3,"A note that reads: \"The key is buried with the artist.\" It seems it's written with an unusually shaky hand."],
+      ["l1-note-8","Journal note 8",19,-42,-3,"A note that reads: \"The key is buried with the artist.\" It seems it's written with an unusally shaky hand."],
       ["l1-note-9","Journal note 9",-8,-70,0,"It led down, an impossibility they said. But we had no other option. We all entered, holding our breath as the door closed behind us."]
     ] as const;
     for(const [id,label,x,z,y,text] of notes)item(id,label,"note",x,z,"#d6ccb0",text,3,undefined,y);

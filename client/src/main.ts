@@ -81,7 +81,7 @@ function syncWorldVisuals(){
   if(!world)return;
   for(const item of world.items){
     if(has(item.id)&&item.kind!=="checkpoint"&&item.kind!=="maze"&&item.kind!=="cipher")item.object.visible=false;
-    if((item.kind==="gate"||item.kind==="finish")&&save.openedGates.includes(item.id)){removeCollider(item.blocker);if(item.leaf)item.leaf.visible=false;}
+    if((item.kind==="gate"||item.kind==="finish"||item.kind==="house-door"||item.kind==="white-door")&&save.openedGates.includes(item.id)){removeCollider(item.blocker);if(item.leaf)item.leaf.visible=false;}
   }
   if(world.stalker)world.stalker.visible=world.layer===1?save.mazeSolved:save.collected.filter(x=>x.startsWith("l2-crystal-")).length>=3;
 }
@@ -97,10 +97,9 @@ function updateHud(){
   if(!world)return;layerLabel.textContent=world.layer===1?"LAYER 1  /  THE THRESHOLD":"LAYER 2  /  THE MONOLITH FIELD";
   if(save.completed)objective.textContent="The way out is open. The expedition is complete.";
   else if(world.layer===1){
-    if(countPrefix("l1-relay-")<3)objective.textContent="Recover three field relays along the broken mountain approach.";
-    else if(!save.openedGates.includes("l1-bunker-gate"))objective.textContent="Return to the sealed bunker door and open its relay lock.";
-    else if(!save.mazeSolved)objective.textContent="Trace the maintenance maze to release the flooded passage.";
-    else objective.textContent="Activate the flood chamber checkpoint, then jump across the stone platforms to reach the descent gate.";
+    if(countPrefix("l1-orb-")<7)objective.textContent="Explore the island and recover seven pale orbs. Search the house, bridge, hidden ledge and graveyard.";
+    else if(!save.openedGates.includes("l1-white-door"))objective.textContent="All seven orbs are gathered. Return to the white door in the middle of the island.";
+    else objective.textContent="Enter the cave, read the last journal note behind the entrance, and use the elevator to descend.";
   }else{
     if(countPrefix("l2-crystal-")<7)objective.textContent="Find all seven pale crystals scattered around the monolith field.";
     else if(countPrefix("l2-clue-")<4)objective.textContent="Read all four inscriptions to learn the seal code.";
@@ -108,12 +107,12 @@ function updateHud(){
     else objective.textContent="Reach the final gate and escape the monolith field.";
   }
   const tasks=world.layer===1?[
-    {done:countPrefix("l1-relay-")>=3,text:"Field relays  "+countPrefix("l1-relay-")+"/3"},
-    {done:save.openedGates.includes("l1-bunker-gate"),text:"Bunker seal opened"},
-    {done:save.mazeSolved,text:"Maintenance maze solved"},
-    {done:save.checkpoint.layer===1&&Math.abs(save.checkpoint.z+128.9)<2,text:"Flood chamber checkpoint activated"},
-    {done:save.openedGates.includes("l1-maze-gate"),text:"Flood lock released"},
-    {done:save.layer===2,text:"Descent to Layer 2"}
+    {done:has("l1-note-1"),text:"Read journal note 1"},
+    {done:has("l1-house-key"),text:"Find the buried house key"},
+    {done:countPrefix("l1-orb-")>=7,text:"Pale orbs  "+countPrefix("l1-orb-")+"/7"},
+    {done:save.openedGates.includes("l1-house-door"),text:"Unlock the house"},
+    {done:save.openedGates.includes("l1-white-door"),text:"Open the white door"},
+    {done:save.layer===2,text:"Descend by elevator"}
   ]:[
     {done:countPrefix("l2-crystal-")>=7,text:"Pale crystals  "+countPrefix("l2-crystal-")+"/7"},
     {done:countPrefix("l2-clue-")>=4,text:"Inscriptions  "+countPrefix("l2-clue-")+"/4"},
@@ -177,8 +176,15 @@ function respawn(message="You fell into the dark. Checkpoint restored."){
   if(world?.stalker)world.stalker.position.set(0,0,world.layer===1?-113:-35);
   camera.position.set(playerX,feetY+1.65,playerZ);saveRun();updateHud();toast(message);
 }
-function openOverlay(title:string,description:string,body:string,mode:"maze"|"cipher"){
+function openOverlay(title:string,description:string,body:string,mode:"maze"|"cipher"|"note"){
   puzzleMode=mode;puzzleTitle.textContent=title;puzzleDescription.textContent=description;puzzleBody.innerHTML=body;puzzleHint.textContent="";overlay.classList.add("visible");if(document.pointerLockElement)document.exitPointerLock();
+}
+function showNote(item:WorldItem){
+  puzzleMode="note";puzzleTitle.textContent=item.label.toUpperCase();puzzleDescription.textContent="FIELD JOURNAL / LAYER 1";puzzleBody.innerHTML="";
+  const paper=document.createElement("article");paper.className="note-paper";
+  const text=document.createElement("p");text.textContent="“"+item.description+"”";paper.appendChild(text);puzzleBody.appendChild(paper);
+  puzzleHint.textContent="NOTE ADDED TO JOURNAL · CLOSE TO CONTINUE";overlay.classList.add("visible");
+  if(document.pointerLockElement)document.exitPointerLock();
 }
 function closePuzzle(){overlay.classList.remove("visible");puzzleMode=null;puzzleBody.innerHTML="";if(active&&!paused&&innerWidth>700)renderer.domElement.requestPointerLock?.();}
 function newMaze(){
@@ -225,15 +231,31 @@ puzzleBody.addEventListener("click",event=>{
 document.querySelector("#puzzleClose")!.addEventListener("click",closePuzzle);
 function nearestItem():WorldItem|undefined{
   if(!world)return undefined;let nearest:WorldItem|undefined,distance=Infinity;
-  for(const item of world.items){if(!item.object.visible)continue;if(item.kind==="gate"&&save.openedGates.includes(item.id))continue;
+  for(const item of world.items){if(!item.object.visible)continue;if(["gate","house-door","white-door","finish"].includes(item.kind)&&save.openedGates.includes(item.id))continue;
     const d=Math.hypot(playerX-item.position.x,feetY+1.2-item.position.y,playerZ-item.position.z);if(d<item.radius&&d<distance){nearest=item;distance=d;}}
   return nearest;
 }
 function interact(){
   if(!active||paused||puzzleMode||save.completed||!world)return;
   const item=nearestItem();if(!item){toast("Nothing close enough to interact with.");return;}
-  if(item.kind==="relay"||item.kind==="crystal"||item.kind==="clue"){
-    if(has(item.id)){toast("You already recovered this.");return;}if(item.kind==="clue")toast(item.description);else toast(item.kind==="crystal"?"Pale crystal recovered.":"Field relay recovered.");collectItem(item);return;}
+  if(item.kind==="note"){if(!has(item.id))collectItem(item);showNote(item);return;}
+  if(item.kind==="orb"||item.kind==="relay"||item.kind==="crystal"||item.kind==="clue"){
+    if(has(item.id)){toast("You already recovered this.");return;}
+    if(item.kind==="clue")toast(item.description);else toast(item.kind==="orb"?"Pale orb recovered.":"Pale crystal recovered.");
+    collectItem(item);return;
+  }
+  if(item.kind==="house-key"){if(!has(item.id)){collectItem(item);toast("House key recovered. You can now unlock the house.");}else toast("You already recovered the house key.");return;}
+  if(item.kind==="house-door"){
+    if(save.openedGates.includes(item.id)){toast("The house door is already open.");return;}
+    if(!has("l1-house-key")){toast("The note says the key is buried with the artist. Search behind the graveyard statue.");return;}
+    openGate(item.id);toast("The house door creaks open.");return;
+  }
+  if(item.kind==="white-door"){
+    const orbs=countPrefix("l1-orb-");if(save.openedGates.includes(item.id)){toast("The white door stands open.");return;}
+    if(orbs<7){toast("The white door needs seven pale orbs ("+orbs+"/7).");return;}
+    openGate(item.id);toast("Seven orbs flare and the white door opens into the cave.");return;
+  }
+  if(item.kind==="elevator"){if(!save.openedGates.includes("l1-white-door")){toast("The cave entrance is still sealed by the white door.");return;}changeLayer(2);return;}
   if(item.kind==="gate"){
     if(save.openedGates.includes(item.id)){toast("The way is open.");return;}
     if(item.id==="l1-bunker-gate"){if(countPrefix("l1-relay-")<3){toast("The bunker seal needs all three field relays.");return;}openGate(item.id);toast("The bunker seal unlocks with a heavy click.");return;}
@@ -241,7 +263,7 @@ function interact(){
   }
   if(item.kind==="maze"){if(!save.openedGates.includes("l1-bunker-gate")){toast("Restore power to the bunker first.");return;}if(save.mazeSolved){toast("The maintenance maze is already solved.");return;}openMaze();return;}
   if(item.kind==="checkpoint"){activateCheckpoint(item);return;}
-  if(item.kind==="layer-exit"){if(!save.mazeSolved||!save.openedGates.includes("l1-maze-gate")){toast("The descent gate is still sealed.");return;}save.elapsedSeconds=elapsedSeconds();elapsedBase=save.elapsedSeconds;sessionStartedAt=Date.now();changeLayer(2);return;}
+  if(item.kind==="layer-exit"){if(!save.openedGates.includes("l1-white-door")){toast("The white door is still sealed.");return;}changeLayer(2);return;}
   if(item.kind==="cipher"){
     const crystals=countPrefix("l2-crystal-"),clues=countPrefix("l2-clue-");
     if(crystals<7){toast("The seal needs all seven pale crystals ("+crystals+"/7).");return;}

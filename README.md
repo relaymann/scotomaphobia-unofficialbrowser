@@ -1,17 +1,13 @@
-# Scotomaphobia — Unofficial Browser Expedition
+# Scotomaphobia — Unofficial Browser Beta
 
-An independent browser horror game inspired by the supplied Layers 1–2 walkthrough. It uses original TypeScript gameplay code and procedural Three.js scenery; it does not include Roblox game assets.
+An independent browser implementation inspired by the supplied walkthrough and wiki notes, using original TypeScript and procedural Three.js scenery.
 
-## Play loop
-- Layer 1 — The Threshold: collect three field relays, open the bunker, solve the maintenance maze, activate a checkpoint, then jump across flooded stepping stones to the descent gate.
-- Layer 2 — The Monolith Field: collect seven pale crystals, find four inscription marks, enter the four-digit seal code, and reach the final gate.
-- Horror mechanics: first-person exploration, jumping and falling, checkpoint recovery, a stalker that advances while it is not being watched, pause/restart, and local progress persistence.
-- Controls: WASD / arrows move, mouse looks, Space jumps, Shift runs, E interacts, Escape pauses. On touch screens use the joystick, drag the right side to look, and tap E.
-- Multiplayer: Socket.IO synchronizes players and shares puzzle/collectible events within the server process. Local progress is saved in the browser.
+## Layer 1 beta route
+- Explore a misty island with a two-moon sky, cliff ledges, a broken plank bridge, an abandoned house, graveyard, statue, and natural cave entrance.
+- Collect **seven pale orbs** across different routes to unlock the central white door.
+- Find the buried house key behind the graveyard statue using the journal clue, then open the house to inspect its interior.
+- Read the nine Layer 1 journal notes at their documented location beats.
+- Enter the cave and use its elevator to descend to Layer 2.
+- PC movement, jump/run, interaction and pause; touch movement/look/interact; local saved progress; optional room-coded Socket.IO co-op.
 
-## Development
-Requires Node.js 22+ and npm 10+.
-Run npm install, then npm run build.
-Run the Vite client and Express server separately with npm run dev --workspace client and npm run dev --workspace server.
-
-This is playable campaign groundwork, not a byte-for-byte recreation. Environments, enemy behavior, puzzles, and progression will continue to be refined against the walkthrough.
+This remains beta work-in-progress, not a verified final recreation. The player avatar and Roblox-like character/physics/lighting systems are being left for a separate pass after the Layer 1 route is stable.
