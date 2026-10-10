@@ -13,7 +13,7 @@ type Player={id:string;room:string;x:number;y:number;z:number;yaw:number;layer:L
 type SharedEvent={type:"collect"|"gate"|"maze"|"code"|"checkpoint"|"complete"|"layer"|"reset";id:string;layer:Layer;digit?:number;checkpoint?:{layer:Layer;x:number;y:number;z:number}};
 const players=new Map<string,Player>();
 const roomEvents=new Map<string,Map<string,SharedEvent>>();
-const validIds=new Set(["l1-house-key","l1-house-door","l1-white-door","l1-elevator","layer-2-entry","expedition-complete","expedition-reset",...Array.from({length:9},(_,i)=>"l1-note-"+(i+1)),...Array.from({length:7},(_,i)=>"l1-orb-"+(i+1)),...Array.from({length:7},(_,i)=>"l2-crystal-"+(i+1)),...Array.from({length:4},(_,i)=>"l2-clue-"+(i+1))]);
+const validIds=new Set(["l1-house-key","l1-house-door","l1-white-door","l1-elevator","l2-finish-gate","l2-seal-code","layer-2-entry","expedition-complete","expedition-reset",...Array.from({length:9},(_,i)=>"l1-note-"+(i+1)),...Array.from({length:7},(_,i)=>"l1-orb-"+(i+1)),...Array.from({length:7},(_,i)=>"l2-crystal-"+(i+1)),...Array.from({length:4},(_,i)=>"l2-clue-"+(i+1))]);
 function getRoomEvents(room:string){let events=roomEvents.get(room);if(!events){events=new Map<string,SharedEvent>();roomEvents.set(room,events);}return events;}
 function snapshot(room:string){return [...players.values()].filter(p=>p.room===room).map(({updatedAt:_,lastPacketAt:__,room:___,...p})=>p);}
 app.get("/health",(_req,res)=>res.json({ok:true,service:"scotomaphobia-realtime",players:players.size,rooms:roomEvents.size,sharedEvents:[...roomEvents.values()].reduce((n,e)=>n+e.size,0),uptimeSeconds:Math.floor(process.uptime())}));

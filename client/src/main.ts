@@ -61,7 +61,7 @@ let socket:ReturnType<typeof io>|undefined;
 const remotes=new Map<string,THREE.Mesh>(),keys=new Set<string>();
 let active=false,paused=false,locked=false,yaw=0,pitch=0,playerX=0,playerZ=12,feetY=0,verticalVelocity=0,onGround=true;
 let lookPointer:number|null=null,lastMouseX=0,lastMouseY=0,joyX=0,joyY=0,stickPointer=-1;
-let puzzleMode:"maze"|"cipher"|null=null,mazeGrid:number[][]=[],mazeRow=1,mazeCol=1,codeInput="";
+let puzzleMode:"maze"|"cipher"|"note"|null=null,mazeGrid:number[][]=[],mazeRow=1,mazeCol=1,codeInput="";
 let toastTimer=0,previousFrameTime=performance.now(),lastUiSecond=-1,lastHazardAt=0;
 
 function elapsedSeconds(){return elapsedBase+(active&&!paused&&sessionStartedAt?Math.max(0,Math.floor((Date.now()-sessionStartedAt)/1000)):0);}

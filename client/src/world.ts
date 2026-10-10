@@ -112,7 +112,7 @@ export function buildWorld(layer:LayerId):BuiltWorld {
     moonB.position.set(35,24,-54);root.add(moonB);
     for(let i=0;i<22;i++){const side=i%2===0?-1:1,x=side*(17+(i%5)*2.1),z=24-Math.floor(i/2)*8.1;rock(x,1.7,z,3.2+(i%2),2.6+(i%3)*.4,4.8,"#50574b");if(i%3===0)tree(side*(14+(i%4)*2),z+2,.72+(i%3)*.1);}
     // Hidden under-terrain alcove on the right, but with an accessible entrance and walkable floor.
-    floor(18,4,13,13,"#2b342c",-1.8);rock(18,1.2,-1,7,2.2,7,"#303930");
+    floor(18,4,13,13,"#2b342c",-1.8);rock(18,1.2,-1,7,1.5,7,"#303930");
     rock(12,-.2,4,2.5,1.2,4,"#485044");rock(24,-.2,4,2.5,1.2,4,"#485044");
     for(let i=0;i<9;i++){const z=-8-i*5.4;box(0,.015,z,5.1,.04,3.2,i%2===0?"#534d3e":"#48483b");for(const side of [-1,1])rock(side*(5.3+(i%3)*.5),.48,z,1.8,.7,2.1,"#444c3e");}
     // House shell and locked front door.
@@ -122,7 +122,7 @@ export function buildWorld(layer:LayerId):BuiltWorld {
     box(-18,3.3,-24,12.4,.4,14.6,"#332e24");
     box(-21.5,1.65,-31,3,3.3,.45,"#55432f",true);box(-14.5,1.65,-31,3,3.3,.45,"#55432f",true);
     for(let i=0;i<5;i++)box(-23.7+i*2.85,1.7,-17.1,.08,2.8,.08,"#77583c");
-    box(-18,1.15,-22,3.2,.22,1.4,"#5b4630",true);box(-18,1.68,-22,2.2,.85,.12,"#6d4d31");
+    box(-18,1.15,-22,3.2,.22,1.4,"#5b4630",true);box(-18,1.68,-22,2.2,.85,.12,"#6d4d31");lamp(-18,2.25,-22.8,"#e0a65d",1.15,8);
     const handle=new THREE.Mesh(new THREE.CylinderGeometry(.055,.075,.95,7),mat("#6b4a30"));handle.rotation.z=Math.PI/2;handle.position.set(-17.4,1.85,-22);root.add(handle);
     const axe=new THREE.Mesh(new THREE.BoxGeometry(.44,.24,.12),mat("#8a8e87"));axe.position.set(-17,1.88,-22);root.add(axe);
     // Graveyard with tombstones and a statue overlooking a drop onto the cliff shelf.
