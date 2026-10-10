@@ -42,10 +42,6 @@ main button:hover,.puzzle-card>button:hover{filter:brightness(1.12)}small{displa
 #puzzleClose{background:transparent;border:1px solid var(--line);color:var(--ink);width:30px;height:30px;font-size:20px;line-height:1}
 .puzzle-card h2{font:800 42px/.95 'Barlow Condensed',sans-serif;margin:18px 0 11px;letter-spacing:.03em}
 #puzzleDescription{font-size:10px;line-height:1.9;color:#c5c9bf;margin:0 0 18px}.puzzle-hint,.puzzle-small{font-size:9px;line-height:1.7;color:#ce9a72;min-height:13px}
-.maze-grid{display:grid;gap:3px;width:min(100%,420px);margin:0 auto;padding:5px;background:#222925;border:1px solid #38433b;aspect-ratio:1}
-.maze-cell{min-width:0;padding:0;display:flex;align-items:center;justify-content:center;border:1px solid #202720;font-size:10px;line-height:1;color:#e8e7d9}
-.maze-cell.wall{background:#070908;border-color:#0a0d0b;cursor:not-allowed}.maze-cell.open{background:#536356;color:#99aa98;border-color:#647265}
-.maze-cell.start,.maze-cell.exit{background:#9d6948;color:#fff1d9}.maze-cell.current{background:#d1e2ad;color:#162018;border-color:#e8f4c8}
 .number-pad{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:7px;max-width:270px;margin:0 auto}
 .number-key{background:#1a211d;border:1px solid #66766a;color:#e2e6dc;min-height:47px;font-size:14px}.number-key:hover{background:#2b3930}
 .number-key.accent{background:#b96a43;color:#111;border-color:#d18b64;font-size:10px}
@@ -59,6 +55,6 @@ main button:hover,.puzzle-card>button:hover{filter:brightness(1.12)}small{displa
  header{padding:16px 18px;font-size:10px}header span{font-size:8px}main{left:24px;right:22px}h1{font-size:76px}main p{font-size:10px}small{font-size:8px;max-width:330px}
  #stick,#interact{display:block}#hud{left:15px;bottom:164px;width:min(310px,calc(100vw - 30px));padding:12px 13px 10px}
  .hud-top{margin-bottom:10px}#objective{font-size:9px;margin:6px 0}.task{font-size:8px}#toast{top:13%;font-size:9px}
- .puzzle-card{padding:17px 15px}.puzzle-card h2{font-size:36px}.maze-grid{gap:2px;padding:3px}.maze-cell{font-size:8px}.number-key{min-height:43px}
 }
 @media(prefers-reduced-motion:reduce){*{transition:none!important}}
+@media(max-width:700px){.puzzle-card{padding:17px 15px}.puzzle-card h2{font-size:36px}.number-key{min-height:43px}}

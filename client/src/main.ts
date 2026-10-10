@@ -3,8 +3,8 @@ import { io } from "socket.io-client";
 import "./style.css";
 import { buildWorld, type BuiltWorld, type LayerId, type WorldItem } from "./world";
 type Checkpoint={layer:LayerId;x:number;y:number;z:number};
-type RunSave={version:2;layer:LayerId;collected:string[];openedGates:string[];mazeSolved:boolean;codeSolved:boolean;clues:Record<string,number>;checkpoint:Checkpoint;completed:boolean;deaths:number;startedAt:number;elapsedSeconds:number};
-type SharedEvent={type:"collect"|"gate"|"maze"|"code"|"checkpoint"|"complete"|"layer"|"reset";id:string;layer:LayerId;digit?:number;checkpoint?:Checkpoint};
+type RunSave={version:2;layer:LayerId;collected:string[];openedGates:string[];codeSolved:boolean;clues:Record<string,number>;checkpoint:Checkpoint;completed:boolean;deaths:number;startedAt:number;elapsedSeconds:number};
+type SharedEvent={type:"collect"|"gate"|"code"|"complete"|"layer"|"reset";id:string;layer:LayerId;digit?:number};
 
 const root=document.querySelector<HTMLDivElement>("#scene")!,intro=document.querySelector<HTMLElement>("#intro")!,hud=document.querySelector<HTMLElement>("#hud")!;
 const startButton=document.querySelector<HTMLButtonElement>("#start")!,status=document.querySelector<HTMLElement>("#status")!,objective=document.querySelector<HTMLElement>("#objective")!;
@@ -34,7 +34,7 @@ renderer.setPixelRatio(Math.min(devicePixelRatio,innerWidth<700?1.25:1.6));rende
 scene.add(new THREE.HemisphereLight("#9caea7","#151514",0.27));
 const moon=new THREE.DirectionalLight("#a9b9ac",0.32);moon.position.set(-10,22,7);scene.add(moon);
 
-const freshSave=():RunSave=>({version:2,layer:1,collected:[],openedGates:[],mazeSolved:false,codeSolved:false,clues:{},checkpoint:{layer:1,x:0,y:1.65,z:12},completed:false,deaths:0,startedAt:Date.now(),elapsedSeconds:0});
+const freshSave=():RunSave=>({version:2,layer:1,collected:[],openedGates:[],codeSolved:false,clues:{},checkpoint:{layer:1,x:0,y:1.65,z:12},completed:false,deaths:0,startedAt:Date.now(),elapsedSeconds:0});
 function readSave(storageKey:string):RunSave{
   try{
     const raw=localStorage.getItem(storageKey);
@@ -45,7 +45,7 @@ function readSave(storageKey:string):RunSave{
     const checkpoint=cp&&(cp.layer===1||cp.layer===2)&&Number.isFinite(cp.x)&&Number.isFinite(cp.y)&&Number.isFinite(cp.z)?{layer:cp.layer,x:cp.x,y:cp.y,z:cp.z}:base.checkpoint;
     return {...base,...p,version:2,layer:p.layer,collected:p.collected.filter((v):v is string=>typeof v==="string").slice(0,128),
       openedGates:p.openedGates.filter((v):v is string=>typeof v==="string").slice(0,32),clues:p.clues&&typeof p.clues==="object"?p.clues:{},checkpoint,
-      mazeSolved:p.mazeSolved===true,codeSolved:p.codeSolved===true,completed:p.completed===true,
+      codeSolved:p.codeSolved===true,completed:p.completed===true,
       deaths:Number.isFinite(p.deaths)?Math.max(0,Math.min(9999,Number(p.deaths))):0,
       elapsedSeconds:Number.isFinite(p.elapsedSeconds)?Math.max(0,Math.min(864000,Number(p.elapsedSeconds))):0,
       startedAt:Number.isFinite(p.startedAt)?Number(p.startedAt):Date.now()};
@@ -56,7 +56,7 @@ let socket:ReturnType<typeof io>|undefined;
 const remotes=new Map<string,THREE.Mesh>(),keys=new Set<string>();
 let active=false,paused=false,locked=false,yaw=0,pitch=0,playerX=0,playerZ=12,feetY=0,verticalVelocity=0,onGround=true;
 let lookPointer:number|null=null,lastMouseX=0,lastMouseY=0,joyX=0,joyY=0,stickPointer=-1;
-let puzzleMode:"maze"|"cipher"|"note"|null=null,mazeGrid:number[][]=[],mazeRow=1,mazeCol=1,codeInput="";
+let puzzleMode:"cipher"|"note"|null=null,codeInput="";
 let toastTimer=0,previousFrameTime=performance.now(),lastUiSecond=-1,lastHazardAt=0;
 
 function elapsedSeconds(){return elapsedBase+(active&&!paused&&sessionStartedAt?Math.max(0,Math.floor((Date.now()-sessionStartedAt)/1000)):0);}
@@ -75,8 +75,8 @@ function disposeWorld(){
 function syncWorldVisuals(){
   if(!world)return;
   for(const item of world.items){
-    if(has(item.id)&&item.kind!=="checkpoint"&&item.kind!=="maze"&&item.kind!=="cipher")item.object.visible=false;
-    if((item.kind==="gate"||item.kind==="finish"||item.kind==="house-door"||item.kind==="white-door")&&save.openedGates.includes(item.id)){removeCollider(item.blocker);if(item.leaf)item.leaf.visible=false;item.object.visible=false;}
+    if(has(item.id)&&item.kind!=="cipher")item.object.visible=false;
+    if((item.kind==="finish"||item.kind==="house-door"||item.kind==="white-door")&&save.openedGates.includes(item.id)){removeCollider(item.blocker);if(item.leaf)item.leaf.visible=false;item.object.visible=false;}
   }
   if(world.stalker)world.stalker.visible=world.layer===2&&save.collected.filter(x=>x.startsWith("l2-crystal-")).length>=3;
 }
@@ -114,7 +114,7 @@ function updateHud(){
     {done:save.codeSolved,text:"Seal code accepted"},{done:save.completed,text:"Escape the monolith field"}
   ];
   objectiveList.innerHTML=tasks.map(t=>"<div class=\"task "+(t.done?"done":"")+"\"><i>"+(t.done?"✓":"·")+"</i><span>"+t.text+"</span></div>").join("");
-  startButton.textContent=save.completed?"START A NEW EXPEDITION":(save.collected.length||save.mazeSolved||save.layer===2?"CONTINUE EXPEDITION":"ENTER THE WOODS ↗");
+  startButton.textContent=save.completed?"START A NEW EXPEDITION":(save.collected.length||save.codeSolved||save.layer===2?"CONTINUE EXPEDITION":"ENTER THE WOODS ↗");
 }
 function floorAt(x:number,z:number):number|undefined{if(!world)return undefined;let top:number|undefined;for(const f of world.floors)if(x>=f.minX&&x<=f.maxX&&z>=f.minZ&&z<=f.maxZ&&(top===undefined||f.y>top))top=f.y;return top;}
 function sendEvent(event:SharedEvent){if(socket?.connected)socket.emit("game:event",event);}
@@ -126,10 +126,6 @@ function openGate(id:string,broadcast=true){
 function collectItem(item:WorldItem){
   addUnique(save.collected,item.id);if(item.kind==="clue"&&typeof item.digit==="number")save.clues[item.id]=item.digit;
   item.object.visible=false;sendEvent({type:"collect",id:item.id,layer:save.layer,digit:item.digit});saveRun();syncWorldVisuals();updateHud();
-}
-function activateCheckpoint(item:WorldItem){
-  save.checkpoint={layer:save.layer,x:item.position.x,y:1.65,z:item.position.z+1.1};
-  sendEvent({type:"checkpoint",id:item.id,layer:save.layer,checkpoint:save.checkpoint});saveRun();toast("Checkpoint activated. Falling will return you here.");
 }
 function applySharedEvent(event:SharedEvent){
   if(!event||!(event.layer===1||event.layer===2)||typeof event.id!=="string")return;
@@ -146,9 +142,7 @@ function applySharedEvent(event:SharedEvent){
   }
   if(event.type==="collect"){addUnique(save.collected,event.id);if(typeof event.digit==="number"&&event.digit>=1&&event.digit<=9)save.clues[event.id]=event.digit;}
   else if(event.type==="gate")addUnique(save.openedGates,event.id);
-  else if(event.type==="maze")save.mazeSolved=true;
   else if(event.type==="code")save.codeSolved=true;
-  else if(event.type==="checkpoint"&&event.checkpoint&&(event.checkpoint.layer===1||event.checkpoint.layer===2))save.checkpoint=event.checkpoint;
   else if(event.type==="complete")save.completed=true;
   if(world&&world.layer===event.layer){if(event.type==="gate"){const item=world.items.find(i=>i.id===event.id);if(item){removeCollider(item.blocker);if(item.leaf)item.leaf.visible=false;}}syncWorldVisuals();}
   saveRun();updateHud();
@@ -171,7 +165,7 @@ function respawn(message="You fell into the dark. Checkpoint restored."){
   if(world?.stalker)world.stalker.position.set(0,0,world.layer===1?-113:-35);
   camera.position.set(playerX,feetY+1.65,playerZ);saveRun();updateHud();toast(message);
 }
-function openOverlay(title:string,description:string,body:string,mode:"maze"|"cipher"|"note"){
+function openOverlay(title:string,description:string,body:string,mode:"cipher"|"note"){
   puzzleMode=mode;puzzleTitle.textContent=title;puzzleDescription.textContent=description;puzzleBody.innerHTML=body;puzzleHint.textContent="";overlay.classList.add("visible");if(document.pointerLockElement)document.exitPointerLock();
 }
 function showNote(item:WorldItem){
@@ -182,51 +176,25 @@ function showNote(item:WorldItem){
   if(document.pointerLockElement)document.exitPointerLock();
 }
 function closePuzzle(){overlay.classList.remove("visible");puzzleMode=null;puzzleBody.innerHTML="";if(active&&!paused&&innerWidth>700)renderer.domElement.requestPointerLock?.();}
-function newMaze(){
-  const size=11,grid=Array.from({length:size},()=>Array(size).fill(1)),visited=Array.from({length:5},()=>Array(5).fill(false)),directions=[[0,1],[1,0],[0,-1],[-1,0]];
-  let seed=2714;const random=()=>{seed=(seed*1664525+1013904223)>>>0;return seed/4294967296;};
-  function carve(r:number,c:number){visited[r][c]=true;grid[r*2+1][c*2+1]=0;const order=directions.slice();for(let i=order.length-1;i>0;i--){const j=Math.floor(random()*(i+1));[order[i],order[j]]=[order[j],order[i]];}
-    for(const d of order){const nr=r+d[0],nc=c+d[1];if(nr<0||nr>=5||nc<0||nc>=5||visited[nr][nc])continue;grid[r*2+1+d[0]][c*2+1+d[1]]=0;carve(nr,nc);}}
-  carve(0,0);grid[9][9]=0;return grid;
-}
-function renderMaze(){
-  const size=mazeGrid.length;let html="<div class=\"maze-grid\" style=\"grid-template-columns:repeat("+size+",minmax(0,1fr))\">";
-  for(let r=0;r<size;r++)for(let c=0;c<size;c++){
-    const start=r===1&&c===1,end=r===size-2&&c===size-2,current=r===mazeRow&&c===mazeCol,wall=mazeGrid[r][c]===1;
-    html+="<button class=\"maze-cell "+(wall?"wall":"open")+(start?" start":"")+(end?" exit":"")+(current?" current":"")+"\" data-cell=\"1\" data-r=\""+r+"\" data-c=\""+c+"\" "+(wall?"disabled":"")+">"+(start?"S":end?"E":current?"●":"")+"</button>";
-  }
-  puzzleBody.innerHTML=html+"</div><p class=\"puzzle-small\">Move one corridor at a time. Backtrack freely; walls cannot be crossed.</p>";
-}
-function openMaze(){mazeGrid=newMaze();mazeRow=1;mazeCol=1;openOverlay("MAINTENANCE MAZE","Trace the corridor from S to E. Reaching the exit releases the flooded lock.","","maze");renderMaze();}
-function openCipher(){
-  codeInput="";const list=["1","2","3","4","5","6","7","8","9","clear","0","enter"];let html="<div id=\"codeDisplay\" class=\"code-display\">_ _ _ _</div><div class=\"number-pad\">";
-  for(const key of list)html+="<button class=\"number-key "+(key==="enter"?"accent":"")+"\" data-key=\""+key+"\">"+(key==="clear"?"⌫":key==="enter"?"ENTER":key)+"</button>";
-  openOverlay("THE SEAL TERMINAL","Enter the four inscription digits in order. All seven crystals and all four inscriptions are required.",html,"cipher");
-}
 puzzleBody.addEventListener("click",event=>{
-  const target=event.target as HTMLElement,cell=target.closest<HTMLButtonElement>("[data-cell]");
-  if(cell&&puzzleMode==="maze"){
-    const r=Number(cell.dataset.r),c=Number(cell.dataset.c);if(Math.abs(r-mazeRow)+Math.abs(c-mazeCol)!==1||mazeGrid[r]?.[c]!==0)return;
-    mazeRow=r;mazeCol=c;renderMaze();
-    if(r===mazeGrid.length-2&&c===mazeGrid.length-2){save.mazeSolved=true;openGate("l1-maze-gate");if(world?.stalker)world.stalker.visible=true;
-      sendEvent({type:"maze",id:"l1-maintenance-maze",layer:1});saveRun();closePuzzle();updateHud();toast("The flooded lock releases. Something moves in the service tunnel.");}
-    return;
-  }
+  const target=event.target as HTMLElement;
   const button=target.closest<HTMLButtonElement>("[data-key]");
-  if(button&&puzzleMode==="cipher"){
-    const key=button.dataset.key;
-    if(key==="clear")codeInput=codeInput.slice(0,-1);
-    else if(key==="enter"){
-      if(codeInput==="2714"){save.codeSolved=true;openGate("l2-finish-gate");sendEvent({type:"code",id:"l2-seal-code",layer:2});saveRun();closePuzzle();updateHud();toast("The terminal accepts the code. The final gate opens.");}
-      else{puzzleHint.textContent="Incorrect sequence. Recheck the inscriptions.";codeInput="";}
-    }else if(key&&/^[0-9]$/.test(key)&&codeInput.length<4)codeInput+=key;
-    const display=document.querySelector<HTMLElement>("#codeDisplay");if(display)display.textContent=(codeInput+"____").slice(0,4).split("").join(" ");
-  }
+  if(!button||puzzleMode!=="cipher")return;
+  const key=button.dataset.key;
+  if(key==="clear")codeInput=codeInput.slice(0,-1);
+  else if(key==="enter"){
+    if(codeInput==="2714"){
+      save.codeSolved=true;openGate("l2-finish-gate");sendEvent({type:"code",id:"l2-seal-code",layer:2});
+      saveRun();closePuzzle();updateHud();toast("The terminal accepts the code. The final gate opens.");
+    }else{puzzleHint.textContent="Incorrect sequence. Recheck the inscriptions.";codeInput="";}
+  }else if(key&&/^[0-9]$/.test(key)&&codeInput.length<4)codeInput+=key;
+  const display=document.querySelector<HTMLElement>("#codeDisplay");
+  if(display)display.textContent=(codeInput+"____").slice(0,4).split("").join(" ");
 });
 document.querySelector("#puzzleClose")!.addEventListener("click",closePuzzle);
 function nearestItem():WorldItem|undefined{
   if(!world)return undefined;let nearest:WorldItem|undefined,distance=Infinity;
-  for(const item of world.items){if(!item.object.visible)continue;if(["gate","house-door","white-door","finish"].includes(item.kind)&&save.openedGates.includes(item.id))continue;
+  for(const item of world.items){if(!item.object.visible)continue;if(["house-door","white-door","finish"].includes(item.kind)&&save.openedGates.includes(item.id))continue;
     const d=Math.hypot(playerX-item.position.x,feetY+1.2-item.position.y,playerZ-item.position.z);if(d<item.radius&&d<distance){nearest=item;distance=d;}}
   return nearest;
 }
@@ -234,7 +202,7 @@ function interact(){
   if(!active||paused||puzzleMode||save.completed||!world)return;
   const item=nearestItem();if(!item){toast("Nothing close enough to interact with.");return;}
   if(item.kind==="note"){if(!has(item.id))collectItem(item);showNote(item);return;}
-  if(item.kind==="orb"||item.kind==="relay"||item.kind==="crystal"||item.kind==="clue"){
+  if(item.kind==="orb"||item.kind==="crystal"||item.kind==="clue"){
     if(has(item.id)){toast("You already recovered this.");return;}
     if(item.kind==="clue")toast(item.description);else toast(item.kind==="orb"?"Pale orb recovered.":"Pale crystal recovered.");
     collectItem(item);return;
@@ -251,14 +219,6 @@ function interact(){
     openGate(item.id);toast("Seven orbs flare and the white door opens into the cave.");return;
   }
   if(item.kind==="elevator"){if(!save.openedGates.includes("l1-white-door")){toast("The cave entrance is still sealed by the white door.");return;}changeLayer(2);return;}
-  if(item.kind==="gate"){
-    if(save.openedGates.includes(item.id)){toast("The way is open.");return;}
-    if(item.id==="l1-bunker-gate"){if(countPrefix("l1-relay-")<3){toast("The bunker seal needs all three field relays.");return;}openGate(item.id);toast("The bunker seal unlocks with a heavy click.");return;}
-    if(item.id==="l1-maze-gate"){if(!save.mazeSolved){toast("The maintenance maze has not released this lock.");return;}openGate(item.id);toast("The flood lock opens.");return;}
-  }
-  if(item.kind==="maze"){if(!save.openedGates.includes("l1-bunker-gate")){toast("Restore power to the bunker first.");return;}if(save.mazeSolved){toast("The maintenance maze is already solved.");return;}openMaze();return;}
-  if(item.kind==="checkpoint"){activateCheckpoint(item);return;}
-  if(item.kind==="layer-exit"){if(!save.openedGates.includes("l1-white-door")){toast("The white door is still sealed.");return;}changeLayer(2);return;}
   if(item.kind==="cipher"){
     const crystals=countPrefix("l2-crystal-"),clues=countPrefix("l2-clue-");
     if(crystals<7){toast("The seal needs all seven pale crystals ("+crystals+"/7).");return;}

@@ -10,7 +10,7 @@ const http=createServer(app);
 const io=new Server(http,{cors:{origin:origins.includes("*")?"*":origins,methods:["GET","POST"]},maxHttpBufferSize:100000,pingInterval:25000,pingTimeout:20000});
 type Layer=1|2;
 type Player={id:string;room:string;x:number;y:number;z:number;yaw:number;layer:Layer;updatedAt:number;lastPacketAt:number};
-type SharedEvent={type:"collect"|"gate"|"maze"|"code"|"checkpoint"|"complete"|"layer"|"reset";id:string;layer:Layer;digit?:number;checkpoint?:{layer:Layer;x:number;y:number;z:number}};
+type SharedEvent={type:"collect"|"gate"|"code"|"complete"|"layer"|"reset";id:string;layer:Layer;digit?:number};
 const players=new Map<string,Player>();
 const roomEvents=new Map<string,Map<string,SharedEvent>>();
 const validIds=new Set(["l1-house-key","l1-house-door","l1-white-door","l1-elevator","l2-finish-gate","l2-seal-code","layer-2-entry","expedition-complete","expedition-reset",...Array.from({length:9},(_,i)=>"l1-note-"+(i+1)),...Array.from({length:7},(_,i)=>"l1-orb-"+(i+1)),...Array.from({length:7},(_,i)=>"l2-crystal-"+(i+1)),...Array.from({length:4},(_,i)=>"l2-clue-"+(i+1))]);
@@ -35,21 +35,15 @@ io.on("connection",s=>{
   players.set(s.id,{...current,x,y,z,yaw,layer,updatedAt:t});
  });
  s.on("game:event",(value:unknown)=>{
-  if(!value||typeof value!=="object")return;const v=value as Record<string,unknown>,types=["collect","gate","maze","code","checkpoint","complete","layer","reset"];
+  if(!value||typeof value!=="object")return;const v=value as Record<string,unknown>,types=["collect","gate","code","complete","layer","reset"];
   if(typeof v.id!=="string"||!validIds.has(v.id)||!types.includes(String(v.type))||(v.layer!==1&&v.layer!==2))return;
   const type=v.type as SharedEvent["type"],layer=v.layer as Layer,id=v.id;
   if(type==="reset"&&id==="expedition-reset"){getRoomEvents(room).clear();s.to(room).emit("game:event",{type,id,layer:1} satisfies SharedEvent);return;}
   const allowed=(type==="collect"&&/^(l1-note-[1-9]|l1-orb-[1-7]|l1-house-key|l2-crystal-[1-7]|l2-clue-[1-4])$/.test(id))||
    (type==="gate"&&["l1-house-door","l1-white-door","l2-finish-gate"].includes(id))||
-   (type==="maze"&&id==="l1-maintenance-maze")||(type==="code"&&id==="l2-seal-code")||
-   (type==="checkpoint"&&id==="l1-checkpoint")||(type==="complete"&&id==="expedition-complete")||(type==="layer"&&id==="layer-2-entry"&&layer===2);
+   (type==="code"&&id==="l2-seal-code")||(type==="complete"&&id==="expedition-complete")||(type==="layer"&&id==="layer-2-entry"&&layer===2);
   if(!allowed)return;const event:SharedEvent={type,id,layer};
   const digit=number(v.digit,1,9);if(type==="collect"&&digit!==undefined&&Number.isInteger(digit))event.digit=digit;
-  if(type==="checkpoint"&&v.checkpoint&&typeof v.checkpoint==="object"){
-   const cp=v.checkpoint as Record<string,unknown>,x=number(cp.x,-250,250),y=number(cp.y,0,20),z=number(cp.z,-250,250);
-   if((cp.layer!==1&&cp.layer!==2)||x===undefined||y===undefined||z===undefined||cp.layer!==layer)return;
-   event.checkpoint={layer,x,y,z};
-  }
   getRoomEvents(room).set(type+":"+layer+":"+id,event);s.to(room).emit("game:event",event);
  });
  s.on("disconnect",()=>{players.delete(s.id);io.to(room).emit("players:state",snapshot(room));});

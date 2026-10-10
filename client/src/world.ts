@@ -1,7 +1,7 @@
 import * as THREE from "three";
 
 export type LayerId = 1 | 2;
-export type ItemKind = "relay" | "gate" | "maze" | "checkpoint" | "layer-exit" | "crystal" | "clue" | "cipher" | "finish" | "note" | "orb" | "house-key" | "house-door" | "white-door" | "elevator";
+export type ItemKind = "crystal" | "clue" | "cipher" | "finish" | "note" | "orb" | "house-key" | "house-door" | "white-door" | "elevator";
 export type FloorRect = { minX:number; maxX:number; minZ:number; maxZ:number; y:number };
 export type HazardZone = { id:string; minX:number; maxX:number; minZ:number; maxZ:number; targetX:number; targetZ:number; message:string };
 export type WorldItem = {
@@ -56,9 +56,9 @@ export function buildWorld(layer:LayerId):BuiltWorld {
   const item=(id:string,label:string,kind:ItemKind,x:number,z:number,color:string,description:string,radius=3,digit?:number,groundY=0)=>{
     const g=new THREE.Group();g.position.set(x,groundY,z);root.add(g);
     let leaf:THREE.Object3D|undefined,blocker:THREE.Box3|undefined;
-    if(kind==="gate"||kind==="layer-exit"||kind==="finish"||kind==="house-door"||kind==="white-door"){
-      const house=kind==="house-door",white=kind==="white-door",w=house?2.8:white?5.2:kind==="gate"?7:8;
-      const height=house?3.1:4,frame=house?"#40352a":white?"#858b83":kind==="gate"?"#51473a":"#36463e",y=groundY+height/2;
+    if(kind==="finish"||kind==="house-door"||kind==="white-door"){
+      const house=kind==="house-door",white=kind==="white-door",w=house?2.8:white?5.2:8;
+      const height=house?3.1:4,frame=house?"#40352a":white?"#858b83":"#36463e",y=groundY+height/2;
       for(const side of [-1,1])box(x+side*w/2,y,z,.55,height,.85,frame,true);
       box(x,y+height/2,z,w+.55,.42,.9,frame,true);
       leaf=box(x,y,z,w-.55,height-.22,.22,house?"#493a2b":white?"#e5e6df":"#101715",false,white?"#ffffff":color);
@@ -80,16 +80,12 @@ export function buildWorld(layer:LayerId):BuiltWorld {
       const ring=new THREE.Mesh(new THREE.TorusGeometry(.22,.07,8,16),mat("#c9b37a","#9e7d38",.5));ring.position.set(-.13,1.25,0);g.add(ring);
       const shaft=new THREE.Mesh(new THREE.CylinderGeometry(.055,.055,.7,8),mat("#d3c08a"));shaft.rotation.z=Math.PI/2;shaft.position.set(.25,1.25,0);g.add(shaft);
       const tooth=new THREE.Mesh(new THREE.BoxGeometry(.12,.2,.1),mat("#d3c08a"));tooth.position.set(.45,1.1,0);g.add(tooth);
-    }else if(kind==="maze"||kind==="cipher"){
+    }else if(kind==="cipher"){
       box(x,.8,z,1.3,1.6,.9,"#232a27",true);
-      box(x,1.17,z+.48,.96,.62,.08,kind==="maze"?"#6e9a90":"#76b78a",false,color);
+      box(x,1.17,z+.48,.96,.62,.08,"#76b78a",false,color);
       for(let j=0;j<3;j++)box(x-.25+j*.25,.35,z+.52,.08,.08,.08,"#d18a50",false,"#d18a50");
       const sig=new THREE.Mesh(new THREE.OctahedronGeometry(.25),mat(color,color,1.3));sig.position.set(0,1.65,0);g.add(sig);
       const light=new THREE.PointLight(color,1.1,7);light.position.set(0,1.5,0);g.add(light);
-    }else if(kind==="checkpoint"){
-      const plinth=new THREE.Mesh(new THREE.CylinderGeometry(.8,.95,.3,8),mat("#383f3c"));plinth.position.y=.15;g.add(plinth);
-      const ring=new THREE.Mesh(new THREE.TorusGeometry(.72,.085,8,24),mat(color,color,1.5));ring.position.y=1.1;g.add(ring);
-      const light=new THREE.PointLight(color,1.4,10);light.position.set(0,1,0);g.add(light);
     }else{
       const plinth=new THREE.Mesh(new THREE.CylinderGeometry(.55,.8,.45,8),mat("#353c38"));plinth.position.y=.22;g.add(plinth);
       const crystal=new THREE.Mesh(new THREE.OctahedronGeometry(kind==="crystal"?.72:.55),mat(color,color,kind==="crystal"?1.9:1.3));crystal.position.y=1.1;crystal.rotation.set(.2,.3,0);g.add(crystal);
