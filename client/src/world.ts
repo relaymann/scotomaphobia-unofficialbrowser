@@ -47,10 +47,16 @@ export function buildWorld(layer:LayerId):BuiltWorld {
       message:"The firepit folds space around you and throws you somewhere else."});
   };
   const rock=(x:number,y:number,z:number,sx:number,sy:number,sz:number,c:string)=>{
-    const o=new THREE.Mesh(new THREE.DodecahedronGeometry(1,1),mat(c));o.position.set(x,y,z);o.scale.set(sx,sy,sz);o.rotation.y=(x+z)*0.03;o.castShadow=true;root.add(o);
+    const o=new THREE.Mesh(new THREE.DodecahedronGeometry(1,1),mat(c));o.position.set(x,y,z);o.scale.set(sx,sy,sz);o.rotation.y=(x+z)*0.03;o.castShadow=true;o.receiveShadow=true;root.add(o);
+    // Give large rocks a conservative collision hull: they should shape traversal, not be walk-through scenery.
+    colliders.push(new THREE.Box3(
+      new THREE.Vector3(x-sx*.38,y-sy*.38,z-sz*.38),
+      new THREE.Vector3(x+sx*.38,y+sy*.38,z+sz*.38)
+    ));
   };
   const tree=(x:number,z:number,s=1)=>{
     const trunk=new THREE.Mesh(new THREE.CylinderGeometry(.16*s,.27*s,2.7*s,6),mat("#332a21"));trunk.position.set(x,1.35*s,z);root.add(trunk);
+    colliders.push(new THREE.Box3(new THREE.Vector3(x-.24*s,0,z-.24*s),new THREE.Vector3(x+.24*s,2.7*s,z+.24*s)));
     for(let i=0;i<3;i++){const cone=new THREE.Mesh(new THREE.ConeGeometry((1.5-i*.25)*s,2.35*s,7),mat(i===1?"#182720":"#202e24"));cone.position.set(x,(2.5+i*.7)*s,z);root.add(cone);}
   };
   const item=(id:string,label:string,kind:ItemKind,x:number,z:number,color:string,description:string,radius=3,digit?:number,groundY=0)=>{
