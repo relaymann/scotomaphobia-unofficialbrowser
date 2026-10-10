@@ -3,7 +3,7 @@ import { io } from "socket.io-client";
 import "./style.css";
 import { buildWorld, type BuiltWorld, type LayerId, type WorldItem } from "./world";
 type Checkpoint={layer:LayerId;x:number;y:number;z:number};
-type RunSave={version:1;layer:LayerId;collected:string[];openedGates:string[];mazeSolved:boolean;codeSolved:boolean;clues:Record<string,number>;checkpoint:Checkpoint;completed:boolean;deaths:number;startedAt:number;elapsedSeconds:number};
+type RunSave={version:2;layer:LayerId;collected:string[];openedGates:string[];mazeSolved:boolean;codeSolved:boolean;clues:Record<string,number>;checkpoint:Checkpoint;completed:boolean;deaths:number;startedAt:number;elapsedSeconds:number};
 type SharedEvent={type:"collect"|"gate"|"maze"|"code"|"checkpoint"|"complete"|"layer"|"reset";id:string;layer:LayerId;digit?:number;checkpoint?:Checkpoint};
 
 const root=document.querySelector<HTMLDivElement>("#scene")!,intro=document.querySelector<HTMLElement>("#intro")!,hud=document.querySelector<HTMLElement>("#hud")!;
@@ -25,9 +25,8 @@ function restoreRoomCode(){
   }catch{return createRoomCode();}
 }
 let roomCode=restoreRoomCode();
-const initialRoomCode=roomCode;
 roomInput.value=roomCode;activeRoomCode.textContent=roomCode;
-const saveSlotKey=()=> "scotomaphobia-run-v1:"+roomCode;
+const saveSlotKey=()=> "scotomaphobia-run-v2:"+roomCode;
 const scene=new THREE.Scene();scene.background=new THREE.Color("#111713");scene.fog=new THREE.FogExp2("#111713",0.018);
 const camera=new THREE.PerspectiveCamera(74,innerWidth/innerHeight,0.08,220);camera.rotation.order="YXZ";
 const renderer=new THREE.WebGLRenderer({antialias:innerWidth>800,powerPreference:"high-performance"});
@@ -35,20 +34,16 @@ renderer.setPixelRatio(Math.min(devicePixelRatio,innerWidth<700?1.25:1.6));rende
 scene.add(new THREE.HemisphereLight("#9caea7","#151514",0.27));
 const moon=new THREE.DirectionalLight("#a9b9ac",0.32);moon.position.set(-10,22,7);scene.add(moon);
 
-const freshSave=():RunSave=>({version:1,layer:1,collected:[],openedGates:[],mazeSolved:false,codeSolved:false,clues:{},checkpoint:{layer:1,x:0,y:1.65,z:12},completed:false,deaths:0,startedAt:Date.now(),elapsedSeconds:0});
-function readSave(storageKey:string,migrateLegacy=false):RunSave{
+const freshSave=():RunSave=>({version:2,layer:1,collected:[],openedGates:[],mazeSolved:false,codeSolved:false,clues:{},checkpoint:{layer:1,x:0,y:1.65,z:12},completed:false,deaths:0,startedAt:Date.now(),elapsedSeconds:0});
+function readSave(storageKey:string):RunSave{
   try{
-    let raw=localStorage.getItem(storageKey);
-    if(!raw&&migrateLegacy&&storageKey==="scotomaphobia-run-v1:"+initialRoomCode){
-      raw=localStorage.getItem("scotomaphobia-run-v1");
-      if(raw)localStorage.setItem(storageKey,raw);
-    }
+    const raw=localStorage.getItem(storageKey);
     if(!raw)return freshSave();
     const p=JSON.parse(raw) as Partial<RunSave>;
-    if(p.version!==1||(p.layer!==1&&p.layer!==2)||!Array.isArray(p.collected)||!Array.isArray(p.openedGates))return freshSave();
+    if(p.version!==2||(p.layer!==1&&p.layer!==2)||!Array.isArray(p.collected)||!Array.isArray(p.openedGates))return freshSave();
     const base=freshSave(),cp=p.checkpoint;
     const checkpoint=cp&&(cp.layer===1||cp.layer===2)&&Number.isFinite(cp.x)&&Number.isFinite(cp.y)&&Number.isFinite(cp.z)?{layer:cp.layer,x:cp.x,y:cp.y,z:cp.z}:base.checkpoint;
-    return {...base,...p,version:1,layer:p.layer,collected:p.collected.filter((v):v is string=>typeof v==="string").slice(0,128),
+    return {...base,...p,version:2,layer:p.layer,collected:p.collected.filter((v):v is string=>typeof v==="string").slice(0,128),
       openedGates:p.openedGates.filter((v):v is string=>typeof v==="string").slice(0,32),clues:p.clues&&typeof p.clues==="object"?p.clues:{},checkpoint,
       mazeSolved:p.mazeSolved===true,codeSolved:p.codeSolved===true,completed:p.completed===true,
       deaths:Number.isFinite(p.deaths)?Math.max(0,Math.min(9999,Number(p.deaths))):0,
@@ -56,7 +51,7 @@ function readSave(storageKey:string,migrateLegacy=false):RunSave{
       startedAt:Number.isFinite(p.startedAt)?Number(p.startedAt):Date.now()};
   }catch{return freshSave();}
 }
-let save=readSave(saveSlotKey(),true),elapsedBase=save.elapsedSeconds,sessionStartedAt=0,world:BuiltWorld|null=null;
+let save=readSave(saveSlotKey()),elapsedBase=save.elapsedSeconds,sessionStartedAt=0,world:BuiltWorld|null=null;
 let socket:ReturnType<typeof io>|undefined;
 const remotes=new Map<string,THREE.Mesh>(),keys=new Set<string>();
 let active=false,paused=false,locked=false,yaw=0,pitch=0,playerX=0,playerZ=12,feetY=0,verticalVelocity=0,onGround=true;
@@ -81,9 +76,9 @@ function syncWorldVisuals(){
   if(!world)return;
   for(const item of world.items){
     if(has(item.id)&&item.kind!=="checkpoint"&&item.kind!=="maze"&&item.kind!=="cipher")item.object.visible=false;
-    if((item.kind==="gate"||item.kind==="finish"||item.kind==="house-door"||item.kind==="white-door")&&save.openedGates.includes(item.id)){removeCollider(item.blocker);if(item.leaf)item.leaf.visible=false;}
+    if((item.kind==="gate"||item.kind==="finish"||item.kind==="house-door"||item.kind==="white-door")&&save.openedGates.includes(item.id)){removeCollider(item.blocker);if(item.leaf)item.leaf.visible=false;item.object.visible=false;}
   }
-  if(world.stalker)world.stalker.visible=world.layer===1?save.mazeSolved:save.collected.filter(x=>x.startsWith("l2-crystal-")).length>=3;
+  if(world.stalker)world.stalker.visible=world.layer===2&&save.collected.filter(x=>x.startsWith("l2-crystal-")).length>=3;
 }
 function installWorld(layer:LayerId,restoreCheckpoint=true){
   disposeWorld();world=buildWorld(layer);scene.add(world.root);save.layer=layer;
@@ -107,7 +102,7 @@ function updateHud(){
     else objective.textContent="Reach the final gate and escape the monolith field.";
   }
   const tasks=world.layer===1?[
-    {done:has("l1-note-1"),text:"Read journal note 1"},
+    {done:countPrefix("l1-note-")>=9,text:"Journal notes  "+countPrefix("l1-note-")+"/9"},
     {done:has("l1-house-key"),text:"Find the buried house key"},
     {done:countPrefix("l1-orb-")>=7,text:"Pale orbs  "+countPrefix("l1-orb-")+"/7"},
     {done:save.openedGates.includes("l1-house-door"),text:"Unlock the house"},
@@ -125,7 +120,7 @@ function floorAt(x:number,z:number):number|undefined{if(!world)return undefined;
 function sendEvent(event:SharedEvent){if(socket?.connected)socket.emit("game:event",event);}
 function openGate(id:string,broadcast=true){
   if(!world)return;const item=world.items.find(i=>i.id===id);addUnique(save.openedGates,id);
-  if(item){removeCollider(item.blocker);if(item.leaf)item.leaf.visible=false;}
+  if(item){removeCollider(item.blocker);if(item.leaf)item.leaf.visible=false;item.object.visible=false;}
   if(broadcast)sendEvent({type:"gate",id,layer:save.layer});saveRun();updateHud();
 }
 function collectItem(item:WorldItem){
