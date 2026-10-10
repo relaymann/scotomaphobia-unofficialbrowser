@@ -94,7 +94,7 @@ function updateHud(){
   else if(world.layer===1){
     if(countPrefix("l1-orb-")<7)objective.textContent="Explore the island and recover seven pale orbs. Search the house, bridge, hidden ledge and graveyard.";
     else if(!save.openedGates.includes("l1-white-door"))objective.textContent="All seven orbs are gathered. Return to the white door in the middle of the island.";
-    else objective.textContent="Enter the cave, read the last journal note behind the entrance, and use the elevator to descend.";
+    else objective.textContent="The white door is open. Enter the cave, read the last journal note if you want the full story, then use the elevator.";
   }else{
     if(countPrefix("l2-crystal-")<7)objective.textContent="Find all seven pale crystals scattered around the monolith field.";
     else if(countPrefix("l2-clue-")<4)objective.textContent="Read all four inscriptions to learn the seal code.";

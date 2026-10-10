@@ -73,7 +73,7 @@ export function buildWorld(layer:LayerId):BuiltWorld {
       const button=new THREE.Mesh(new THREE.SphereGeometry(.12,8,8),mat("#b6dcca","#81dfb6",1.8));button.position.set(2.15,1.35,.09);g.add(button);
       const light=new THREE.PointLight("#8fd2b2",1.2,8);light.position.set(0,2,0);g.add(light);
     }else if(kind==="note"){
-      const paper=new THREE.Mesh(new THREE.PlaneGeometry(.82,1.08),mat("#c9c2a6","#5a4c35",.22));paper.position.set(0,1.42,.12);paper.rotation.y=Math.PI;g.add(paper);
+      const paper=new THREE.Mesh(new THREE.PlaneGeometry(.82,1.08),mat("#c9c2a6","#5a4c35",.22));paper.position.set(0,1.42,.12);paper.rotation.y=Math.PI;(paper.material as THREE.Material).side=THREE.DoubleSide;g.add(paper);
       for(let i=0;i<4;i++){const line=new THREE.Mesh(new THREE.BoxGeometry(.48,.018,.015),mat("#625a4a"));line.position.set(0,1.57-i*.13,.14);g.add(line);}
       const light=new THREE.PointLight("#d3c7a2",.18,2);light.position.set(0,1.5,0);g.add(light);
     }else if(kind==="house-key"){
@@ -117,7 +117,7 @@ export function buildWorld(layer:LayerId):BuiltWorld {
     for(let i=0;i<9;i++){const z=-8-i*5.4;box(0,.015,z,5.1,.04,3.2,i%2===0?"#534d3e":"#48483b");for(const side of [-1,1])rock(side*(5.3+(i%3)*.5),.48,z,1.8,.7,2.1,"#444c3e");}
     // House shell and locked front door.
     floor(-18,-25,14,15,"#4a4438");
-    box(-18,1.65,-17.7,12,.35,.5,"#503f2e");
+    box(-18,1.65,-17.7,12,3.3,.5,"#503f2e",true);
     box(-24,1.65,-24,.45,3.3,14,"#55432f",true);box(-12,1.65,-24,.45,3.3,14,"#55432f",true);
     box(-18,3.3,-24,12.4,.4,14.6,"#332e24");
     box(-21.5,1.65,-31,3,3.3,.45,"#55432f",true);box(-14.5,1.65,-31,3,3.3,.45,"#55432f",true);
