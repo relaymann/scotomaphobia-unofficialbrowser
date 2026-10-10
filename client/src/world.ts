@@ -130,6 +130,8 @@ export function buildWorld(layer:LayerId):BuiltWorld {
     for(const side of [-1,1]){const arm=new THREE.Mesh(new THREE.BoxGeometry(.24,1.25,.3),mat("#77796d"));arm.position.set(side*.65,1.35,0);arm.rotation.z=side*.15;statue.add(arm);}
     box(21.2,.8,-30.2,1.2,.45,.45,"#5a5e53");
     floor(21,-41,15,12,"#343b32",-3);
+    // Stepped rock shelves give players a way back up after dropping to the graveyard cliff.
+    floor(15,-36.5,4,3,"#4b4e43",-2.2);floor(19,-35,4,3,"#55584a",-1.4);floor(23,-33.5,4,3,"#626456",-.6);
     // A distinctive artist grave marker anchors the buried-key clue on the lower shelf.
     box(21,-2.15,-38,.85,1.7,.25,"#74776b");box(21,-1.6,-38,.55,.08,.06,"#a6a99a");
     for(let i=0;i<4;i++)rock(14+i*4.6,-1.7,-35.2-i*.4,2.2,1.1,2.4,"#51584b");
@@ -142,7 +144,7 @@ export function buildWorld(layer:LayerId):BuiltWorld {
     // Natural cave walls around a sealed white door; the elevator is inside the cave.
     for(const side of [-1,1]){rock(side*8,1.4,-56,4,2.2,5.5,"#41493e");rock(side*10,3.3,-70,4.5,3,6,"#30382f");rock(side*7.8,3.8,-83,3.4,2.3,5.4,"#242b28");}
     // Solid cave-side walls meet the white door frame so its lock cannot be bypassed around the edge.
-    box(-5.3,2.2,-63,4.6,4.4,.7,"#454d43",true);box(5.3,2.2,-63,4.6,4.4,.7,"#454d43",true);
+    box(-5.7,2.2,-63,5.4,4.4,.7,"#454d43",true);box(5.7,2.2,-63,5.4,4.4,.7,"#454d43",true);
     rock(0,6.2,-73,10.2,2,13,"#262d28");rock(-7,3.7,-78,3,2.8,12,"#29312b");rock(7,3.7,-78,3,2.8,12,"#29312b");
     for(let i=0;i<6;i++)box(0,3.9,-74-i*3.1,12,.32,.28,"#414940");
     floor(0,-89,11,9,"#303932");
