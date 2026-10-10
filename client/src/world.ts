@@ -170,7 +170,7 @@ export function buildWorld(layer:LayerId):BuiltWorld {
       ["l1-note-1","Journal note 1",-28,-2,0,"We were all sent in with a week of supplies, with generic gear and one personal keepsake. Some brought photos of loved ones, tools or religious symbols. I brought my journal to keep writing what I witnessed down here."],
       ["l1-note-2","Journal note 2",-26,-35,0,"The air up here makes me lightheaded. I worry if we stay up here for too long, it will run dry. So we set out, light in hand."],
       ["l1-note-3","Journal note 3",0,-36.8,0,"It's a selection process. Regardless of age, everyone has a chance of being sent. One in my group is in a wheelchair and another deaf in both ears. All sick, all inflicted, numbers on our backs."],
-      ["l1-note-4","Journal note 4",18,4,-1.8,"The place they placed us was foreign to us all. One island, always misty. We couldn't see anything below the mist, and we certainly didn't want to jump down to find out. The night sky has no star patterns we remember and two moons. We are hopelessly lost."],
+      ["l1-note-4","Journal note 4",18,1,-1.8,"The place they placed us was foreign to us all. One island, always misty. We couldn't see anything below the mist, and we certainly didn't want to jump down to find out. The night sky has no star patterns we remember and two moons. We are hopelessly lost."],
       ["l1-note-5","Journal note 5",24,-41,-3,"There are few bodies that return, and fewer places to bury them, lest we be walking on our dead."],
       ["l1-note-6","Journal note 6",9,-49,0,"The news was in calamity. Nobody knew what to do, or who to pray to. It was as if we were abandoned by god."],
       ["l1-note-7","Journal note 7",-18,-22,0,"It was here when we arrived. I'm unsure how the fire remains lit, or where the lamp receives its power, but we're not dismantling it to bring it with us. Where did the wood come from if there were no trees?"],
@@ -180,7 +180,7 @@ export function buildWorld(layer:LayerId):BuiltWorld {
     for(const [id,label,x,z,y,text] of notes)item(id,label,"note",x,z,"#d6ccb0",text,3,undefined,y);
     item("l1-house-key","House key","house-key",21,-41,"#d8c08a","A brass key lies beside the artist's grave. It fits the house door.",2.3,undefined,-3);
     item("l1-orb-1","Pale orb 1","orb",-10,-3,"#a5d9c0","One of seven pale orbs needed to unlock the white door.",2.6);
-    item("l1-orb-2","Pale orb 2","orb",18,3,"#a5d9c0","A pale orb tucked beneath the overhang.",2.6,undefined,-1.8);
+    item("l1-orb-2","Pale orb 2","orb",18,1,"#a5d9c0","A pale orb tucked beneath the overhang.",2.6,undefined,-1.8);
     item("l1-orb-3","Pale orb 3","orb",-18,-22,"#a5d9c0","A pale orb resting inside the house.",2.6);
     item("l1-orb-4","Pale orb 4","orb",-.8,-38.7,"#a5d9c0","A pale orb along the broken bridge.",2.5);
     item("l1-orb-5","Pale orb 5","orb",25,-40,"#a5d9c0","A pale orb down on the graveyard cliff.",2.5,undefined,-3);
