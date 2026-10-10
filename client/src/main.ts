@@ -4,7 +4,7 @@ import "./style.css";
 import { buildWorld, type BuiltWorld, type LayerId, type WorldItem } from "./world";
 type Checkpoint={layer:LayerId;x:number;y:number;z:number};
 type RunSave={version:1;layer:LayerId;collected:string[];openedGates:string[];mazeSolved:boolean;codeSolved:boolean;clues:Record<string,number>;checkpoint:Checkpoint;completed:boolean;deaths:number;startedAt:number;elapsedSeconds:number};
-type SharedEvent={type:"collect"|"gate"|"maze"|"code"|"checkpoint"|"complete";id:string;layer:LayerId;digit?:number;checkpoint?:Checkpoint};
+type SharedEvent={type:"collect"|"gate"|"maze"|"code"|"checkpoint"|"complete"|"layer";id:string;layer:LayerId;digit?:number;checkpoint?:Checkpoint};
 
 const root=document.querySelector<HTMLDivElement>("#scene")!,intro=document.querySelector<HTMLElement>("#intro")!,hud=document.querySelector<HTMLElement>("#hud")!;
 const startButton=document.querySelector<HTMLButtonElement>("#start")!,status=document.querySelector<HTMLElement>("#status")!,objective=document.querySelector<HTMLElement>("#objective")!;
@@ -139,6 +139,10 @@ function activateCheckpoint(item:WorldItem){
 }
 function applySharedEvent(event:SharedEvent){
   if(!event||!(event.layer===1||event.layer===2)||typeof event.id!=="string")return;
+  if(event.type==="layer"&&event.id==="layer-2-entry"){
+    if(save.layer!==2){save.layer=2;save.checkpoint={layer:2,x:0,y:1.65,z:12};installWorld(2,false);toast("Your expedition has descended with the group.");}
+    return;
+  }
   if(event.type==="collect"){addUnique(save.collected,event.id);if(typeof event.digit==="number"&&event.digit>=1&&event.digit<=9)save.clues[event.id]=event.digit;}
   else if(event.type==="gate")addUnique(save.openedGates,event.id);
   else if(event.type==="maze")save.mazeSolved=true;
@@ -237,7 +241,7 @@ function interact(){
     if(clues<4){toast("Find all four inscription marks ("+clues+"/4).");return;}if(save.codeSolved){toast("The seal code is already accepted.");return;}openCipher();return;}
   if(item.kind==="finish"){if(!save.codeSolved){toast("The final gate is still sealed.");return;}finishRun();return;}
 }
-function changeLayer(layer:LayerId){save.layer=layer;save.checkpoint={layer,x:0,y:1.65,z:12};installWorld(layer,false);toast("The monolith field stretches into the dark.");saveRun();}
+function changeLayer(layer:LayerId){if(layer===2)sendEvent({type:"layer",id:"layer-2-entry",layer:2});save.layer=layer;save.checkpoint={layer,x:0,y:1.65,z:12};installWorld(layer,false);toast("The monolith field stretches into the dark.");saveRun();}
 function finishRun(){
   save.elapsedSeconds=elapsedSeconds();elapsedBase=save.elapsedSeconds;sessionStartedAt=0;save.completed=true;active=false;paused=false;
   sendEvent({type:"complete",id:"expedition-complete",layer:save.layer});saveRun();hud.classList.remove("visible");endScreen.classList.add("visible");
