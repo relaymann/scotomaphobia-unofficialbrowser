@@ -1,7 +1,7 @@
 import * as THREE from "three";
 
 export type LayerId = 1 | 2;
-export type ItemKind = "relay" | "gate" | "maze" | "checkpoint" | "layer-exit" | "crystal" | "clue" | "cipher" | "finish";
+export type ItemKind = "relay" | "gate" | "maze" | "checkpoint" | "layer-exit" | "crystal" | "clue" | "cipher" | "finish" | "note" | "orb" | "house-key" | "house-door" | "white-door" | "elevator";
 export type FloorRect = { minX:number; maxX:number; minZ:number; maxZ:number; y:number };
 export type HazardZone = { id:string; minX:number; maxX:number; minZ:number; maxZ:number; targetX:number; targetZ:number; message:string };
 export type WorldItem = {
@@ -53,17 +53,33 @@ export function buildWorld(layer:LayerId):BuiltWorld {
     const trunk=new THREE.Mesh(new THREE.CylinderGeometry(.16*s,.27*s,2.7*s,6),mat("#332a21"));trunk.position.set(x,1.35*s,z);root.add(trunk);
     for(let i=0;i<3;i++){const cone=new THREE.Mesh(new THREE.ConeGeometry((1.5-i*.25)*s,2.35*s,7),mat(i===1?"#182720":"#202e24"));cone.position.set(x,(2.5+i*.7)*s,z);root.add(cone);}
   };
-  const item=(id:string,label:string,kind:ItemKind,x:number,z:number,color:string,description:string,radius=3,digit?:number)=>{
-    const g=new THREE.Group();g.position.set(x,0,z);root.add(g);
+  const item=(id:string,label:string,kind:ItemKind,x:number,z:number,color:string,description:string,radius=3,digit?:number,groundY=0)=>{
+    const g=new THREE.Group();g.position.set(x,groundY,z);root.add(g);
     let leaf:THREE.Object3D|undefined,blocker:THREE.Box3|undefined;
-    if(kind==="gate"||kind==="layer-exit"||kind==="finish"){
-      const w=kind==="gate"?7:8,frame=kind==="gate"?"#51473a":"#36463e";
-      for(const side of [-1,1])box(x+side*w/2,2,z,.65,4,.85,frame,true);
-      box(x,4,z,w+.65,.5,.9,frame,true);
-      leaf=box(x,1.95,z,w-.65,3.65,.38,kind==="gate"?"#171a17":"#101715",false,color);
-      const seal=new THREE.Mesh(new THREE.OctahedronGeometry(.48),mat(color,color,1.7));seal.position.set(0,2.05,.3);g.add(seal);
-      const light=new THREE.PointLight(color,2.2,13);light.position.set(0,2.2,1);g.add(light);
-      blocker=new THREE.Box3(new THREE.Vector3(x-w/2+.3,0,z-.3),new THREE.Vector3(x+w/2-.3,4,z+.3));colliders.push(blocker);
+    if(kind==="gate"||kind==="layer-exit"||kind==="finish"||kind==="house-door"||kind==="white-door"){
+      const house=kind==="house-door",white=kind==="white-door",w=house?2.8:white?5.2:kind==="gate"?7:8;
+      const height=house?3.1:4,frame=house?"#40352a":white?"#858b83":kind==="gate"?"#51473a":"#36463e",y=groundY+height/2;
+      for(const side of [-1,1])box(x+side*w/2,y,z,.55,height,.85,frame,true);
+      box(x,y+height/2,z,w+.55,.42,.9,frame,true);
+      leaf=box(x,y,z,w-.55,height-.22,.22,house?"#493a2b":white?"#e5e6df":"#101715",false,white?"#ffffff":color);
+      if(white){for(let i=0;i<3;i++)box(x-.9+i*.9,groundY+height*.48,z+.14,.23,.23,.05,"#c9d0c9",false,"#eef8eb");}
+      else{const seal=new THREE.Mesh(new THREE.OctahedronGeometry(.38),mat(color,color,1.5));seal.position.set(0,height*.52,.25);g.add(seal);}
+      const light=new THREE.PointLight(white?"#dbe8df":color,1.2,9);light.position.set(0,height*.55,1);g.add(light);
+      blocker=new THREE.Box3(new THREE.Vector3(x-w/2+.2,groundY,z-.28),new THREE.Vector3(x+w/2-.2,groundY+height,z+.28));colliders.push(blocker);
+    }else if(kind==="elevator"){
+      const platform=new THREE.Mesh(new THREE.BoxGeometry(5.6,.35,5.6),mat("#555b55"));platform.position.y=.18;g.add(platform);
+      for(const side of [-1,1]){const rail=new THREE.Mesh(new THREE.BoxGeometry(.18,4,.18),mat("#6d776f"));rail.position.set(side*2.5,2,side*2.5);g.add(rail);}
+      const panel=new THREE.Mesh(new THREE.BoxGeometry(.45,1.3,.12),mat("#242d28"));panel.position.set(2.15,1.15,0);g.add(panel);
+      const button=new THREE.Mesh(new THREE.SphereGeometry(.12,8,8),mat("#b6dcca","#81dfb6",1.8));button.position.set(2.15,1.35,.09);g.add(button);
+      const light=new THREE.PointLight("#8fd2b2",1.2,8);light.position.set(0,2,0);g.add(light);
+    }else if(kind==="note"){
+      const paper=new THREE.Mesh(new THREE.PlaneGeometry(.82,1.08),mat("#c9c2a6","#5a4c35",.22));paper.position.set(0,1.42,.12);paper.rotation.y=Math.PI;g.add(paper);
+      for(let i=0;i<4;i++){const line=new THREE.Mesh(new THREE.BoxGeometry(.48,.018,.015),mat("#625a4a"));line.position.set(0,1.57-i*.13,.14);g.add(line);}
+      const light=new THREE.PointLight("#d3c7a2",.18,2);light.position.set(0,1.5,0);g.add(light);
+    }else if(kind==="house-key"){
+      const ring=new THREE.Mesh(new THREE.TorusGeometry(.22,.07,8,16),mat("#c9b37a","#9e7d38",.5));ring.position.set(-.13,1.25,0);g.add(ring);
+      const shaft=new THREE.Mesh(new THREE.CylinderGeometry(.055,.055,.7,8),mat("#d3c08a"));shaft.rotation.z=Math.PI/2;shaft.position.set(.25,1.25,0);g.add(shaft);
+      const tooth=new THREE.Mesh(new THREE.BoxGeometry(.12,.2,.1),mat("#d3c08a"));tooth.position.set(.45,1.1,0);g.add(tooth);
     }else if(kind==="maze"||kind==="cipher"){
       box(x,.8,z,1.3,1.6,.9,"#232a27",true);
       box(x,1.17,z+.48,.96,.62,.08,kind==="maze"?"#6e9a90":"#76b78a",false,color);
@@ -80,57 +96,91 @@ export function buildWorld(layer:LayerId):BuiltWorld {
       const ring=new THREE.Mesh(new THREE.TorusGeometry(.68,.035,6,20),mat(color,color,1));ring.position.y=.82;ring.rotation.x=Math.PI/2;g.add(ring);
       const light=new THREE.PointLight(color,kind==="crystal"?1.7:1.1,9);light.position.set(0,1.4,0);g.add(light);
     }
-    const out:WorldItem={id,label,kind,position:new THREE.Vector3(x,1.2,z),radius,description,object:g,blocker,leaf,digit};
+    const out:WorldItem={id,label,kind,position:new THREE.Vector3(x,groundY+1.2,z),radius,description,object:g,blocker,leaf,digit};
     items.push(out);return out;
   };
 
   if(layer===1){
-    floor(0,0,44,54,"#343d31");floor(0,-54,21,24,"#34392e");floor(0,-70,21,16,"#34392e");
-    floor(-8,-14,13,20,"#713f2c",-0.02);floor(8,-14,13,20,"#713f2c",-0.02);
-    for(const side of [-1,1]){
-      for(let i=0;i<10;i++){const z=20-i*8.1;rock(side*(10+(i%3)*2.2),1.8,z,3.2+(i%2),2.5+(i%3)*.4,4.8,"#51584b");if(i%2===0)rock(side*(15+i%3),2.3,z-2,4.8,3.2,5.8,"#343e34");}
-      for(let i=0;i<5;i++)tree(side*(10+i%2*4),14-i*8,.8+(i%3)*.1);
-      box(side*12,2.2,-55,1.1,4.4,25,"#484c41",true);
-      box(side*6.7,2.3,-103,.8,4.6,59,"#383c35",true);
-      box(side*6.7,2.3,-177,.8,4.6,48,"#232c2a",true);
-    }
-    for(const z of [-27,-29,-31,-34,-36,-38,-41,-43]){
-      floor(0,z,4.7,1.72,z===-34||z===-41?"#3e443f":"#494b46",.08);
-      box(-2.45,.35,z,.12,.7,1.7,"#60615a");box(2.45,.35,z,.12,.7,1.7,"#60615a");
-    }
-    floor(0,-106,12.5,60,"#2a2d29");floor(0,-130,12.5,12,"#2a2d29");
-    // The bunker facade keeps its centre open; the gate leaf provides the locked collision.
-    box(-5.1,2.2,-77,4.2,4.4,.8,"#4a463b",true);box(5.1,2.2,-77,4.2,4.4,.8,"#4a463b",true);
-    box(-4.2,2,-79,.6,4,4,"#51483b",true);box(4.2,2,-79,.6,4,4,"#51483b",true);
-    for(let i=0;i<7;i++){
-      const z=-84-i*7.2;box(0,3.65,z,12.2,.24,.34,"#45443b");
-      box(-5.8,.02,z,.35,.04,3.7,"#65533c");box(5.8,.02,z,.35,.04,3.7,"#65533c");
-      if(i%2===0){lamp(-4.8,2.7,z-1,"#e18a37",1.35,8);lamp(4.8,2.7,z-1,"#dc8534",1.35,8);}
-    }
-    for(let i=0;i<8;i++)box(-3.8+(i%4)*2.5,.16,-94-Math.floor(i/4)*2.5,1.8,.22,1.6,"#3c3d36");
-    const water=new THREE.Mesh(new THREE.PlaneGeometry(28,51),new THREE.MeshStandardMaterial({color:"#0b3037",roughness:.26,metalness:.25,transparent:true,opacity:.84,emissive:"#03161e",emissiveIntensity:.7}));
-    water.rotation.x=-Math.PI/2;water.position.set(0,-2.7,-164);root.add(water);
-    for(let i=0;i<6;i++){const z=-140-i*5.7,x=i%2===0?-1.15:1.15;floor(x,z,4.8,4.1,i%2===0?"#4a4a43":"#3d4543");rock(x,.12,z,1.45,.22,1.25,"#5d625a");if(i===1||i===4)lamp(x,.55,z,"#ee8b35",1.3,7);}
-    floor(0,-177,17,21,"#323931");
-    for(let i=0;i<4;i++)rock(i%2?6:-6,1.2,-181-i*3,1.8,1.4,2.4,"#353c34");
-    box(-4.7,.45,-89,1.2,.9,.8,"#51463a",true);box(4.8,.55,-119,1.1,1.1,1.1,"#373b36",true);lamp(0,3.1,-126,"#4fa8b7",1.6,10);
-    item("l1-relay-a","Field relay A","relay",-6,-2,"#e6b45a","A cracked field relay still holds a charge. Recover it before entering the bunker.",3);
-    item("l1-relay-b","Field relay B","relay",6,-11,"#e6b45a","This relay was left beneath a split stone arch.",3);
-    item("l1-relay-c","Field relay C","relay",0,-21,"#e6b45a","The last relay flickers beside the broken approach.",3);
-    item("l1-bunker-gate","Bunker seal","gate",0,-77,"#c98250","The bunker door needs all three field relays.",4);
-    item("l1-maze-console","Maintenance maze","maze",-3.9,-109,"#54b5b0","Trace a safe route through the maintenance maze to release the submerged lock.",3.2);
-    item("l1-checkpoint","Flood chamber checkpoint","checkpoint",0,-130,"#65b7c7","A stable beacon. Activate it before crossing the flooded chamber.",3);
-    item("l1-maze-gate","Flood lock","gate",0,-136,"#49b9c7","The flood lock releases when the maintenance maze is solved.",3);
-    item("l1-descent-gate","Descent gate","layer-exit",0,-186,"#49b9c7","The descent gate leads into the monolith field.",3.5);
-    rock(-9,.8,-48,2,1.2,3,"#4f5749");rock(9,.8,-48,2,1.2,3,"#4f5749");
-    const stalker=new THREE.Group();stalker.position.set(0,0,-125);root.add(stalker);
-    const body=new THREE.Mesh(new THREE.CapsuleGeometry(.38,1.35,4,8),mat("#080b0b","#101819",.7));body.position.y=1.05;stalker.add(body);
-    const head=new THREE.Mesh(new THREE.SphereGeometry(.36,12,10),mat("#050606","#101b1d",.5));head.position.y=2;stalker.add(head);
-    for(const side of [-1,1]){const eye=new THREE.Mesh(new THREE.SphereGeometry(.065,8,8),mat("#b7e8e6","#7ee8e2",2.2));eye.position.set(side*.14,2.03,-.31);stalker.add(eye);const leg=new THREE.Mesh(new THREE.CylinderGeometry(.13,.17,.9,6),mat("#070909"));leg.position.set(side*.2,.28,0);stalker.add(leg);}
-    stalker.visible=false;
+    // Mistbound island surface: spawn, house, broken bridge, graveyard, central white door and cave elevator.
+    floor(-10,3,42,50,"#3b4435");floor(18,15,18,22,"#394234");
+    floor(0,-17,25,25,"#42473a");floor(-18,-25,26,22,"#393f32");
+    floor(0,-38,11,22,"#343d32");floor(0,-53,26,12,"#343a31");
+    floor(0,-70,17,28,"#222924");floor(0,-87,16,12,"#1d2421");
+    const moonA=new THREE.Mesh(new THREE.SphereGeometry(2.1,18,14),new THREE.MeshBasicMaterial({color:"#c9d2ce"}));
+    moonA.position.set(-38,29,-68);root.add(moonA);
+    const moonB=new THREE.Mesh(new THREE.SphereGeometry(1.1,16,12),new THREE.MeshBasicMaterial({color:"#b3bfc0"}));
+    moonB.position.set(35,24,-54);root.add(moonB);
+    for(let i=0;i<22;i++){const side=i%2===0?-1:1,x=side*(17+(i%5)*2.1),z=24-Math.floor(i/2)*8.1;rock(x,1.7,z,3.2+(i%2),2.6+(i%3)*.4,4.8,"#50574b");if(i%3===0)tree(side*(14+(i%4)*2),z+2,.72+(i%3)*.1);}
+    // Hidden under-terrain alcove on the right, but with an accessible entrance and walkable floor.
+    floor(18,4,13,13,"#2b342c",-1.8);rock(18,1.2,-1,7,2.2,7,"#303930");
+    rock(12,-.2,4,2.5,1.2,4,"#485044");rock(24,-.2,4,2.5,1.2,4,"#485044");
+    for(let i=0;i<9;i++){const z=-8-i*5.4;box(0,.015,z,5.1,.04,3.2,i%2===0?"#534d3e":"#48483b");for(const side of [-1,1])rock(side*(5.3+(i%3)*.5),.48,z,1.8,.7,2.1,"#444c3e");}
+    // House shell and locked front door.
+    floor(-18,-25,14,15,"#4a4438");
+    box(-18,1.65,-17.7,12,.35,.5,"#503f2e");
+    box(-24,1.65,-24,.45,3.3,14,"#55432f",true);box(-12,1.65,-24,.45,3.3,14,"#55432f",true);
+    box(-18,3.3,-24,12.4,.4,14.6,"#332e24");
+    box(-21,1.65,-31,6,3.3,.45,"#55432f",true);box(-15,1.65,-31,6,3.3,.45,"#55432f",true);
+    for(let i=0;i<5;i++)box(-23.7+i*2.85,1.7,-17.1,.08,2.8,.08,"#77583c");
+    box(-18,1.15,-22,3.2,.22,1.4,"#5b4630",true);box(-18,1.68,-22,2.2,.85,.12,"#6d4d31");
+    const handle=new THREE.Mesh(new THREE.CylinderGeometry(.055,.075,.95,7),mat("#6b4a30"));handle.rotation.z=Math.PI/2;handle.position.set(-17.4,1.85,-22);root.add(handle);
+    const axe=new THREE.Mesh(new THREE.BoxGeometry(.44,.24,.12),mat("#8a8e87"));axe.position.set(-17,1.88,-22);root.add(axe);
+    // Graveyard with tombstones and a statue overlooking a drop onto the cliff shelf.
+    floor(20,-25,18,17,"#373b32");
+    for(let i=0;i<8;i++){const x=14+(i%4)*4.2,z=-20-Math.floor(i/4)*5;box(x,.75,z,.72,1.5,.22,"#686d61");box(x,.35,z,.94,.18,.4,"#575d52");}
+    const statue=new THREE.Group();statue.position.set(21.2,0,-29);root.add(statue);
+    const torso=new THREE.Mesh(new THREE.BoxGeometry(.9,2,.65),mat("#77796d"));torso.position.y=1.1;statue.add(torso);
+    const head=new THREE.Mesh(new THREE.SphereGeometry(.43,12,10),mat("#8c8d80"));head.position.y=2.45;statue.add(head);
+    for(const side of [-1,1]){const arm=new THREE.Mesh(new THREE.BoxGeometry(.24,1.25,.3),mat("#77796d"));arm.position.set(side*.65,1.35,0);arm.rotation.z=side*.15;statue.add(arm);}
+    box(21.2,.8,-30.2,1.2,.45,.45,"#5a5e53");
+    floor(21,-41,15,12,"#343b32",-3);
+    for(let i=0;i<4;i++)rock(14+i*4.6,-1.7,-35.2-i*.4,2.2,1.1,2.4,"#51584b");
+    for(let i=0;i<4;i++)rock(14+(i%2)*13,-2.5,-39-Math.floor(i/2)*4,1.3,.55,1.5,"#5a6055");
+    // Narrow bridge, with real gaps and a trowel prop.
+    for(let i=0;i<18;i++){const z=-30-i*.95;floor(0,z,4.1,.78,i%4===0?"#373a34":"#655543",.06);box(-2.18,.4,z,.12,.8,.12,"#4e493c");box(2.18,.4,z,.12,.8,.12,"#4e493c");}
+    for(const side of [-1,1]){box(side*2.25,.65,-38,.12,1.3,17,"#4b493f");for(let i=0;i<6;i++)box(side*2.25,1.2,-32-i*2.1,.12,.08,.55,"#6e6655");}
+    const trowel=new THREE.Mesh(new THREE.BoxGeometry(.16,.08,.78),mat("#777b73"));trowel.position.set(1.1,.23,-36.8);root.add(trowel);
+    const trowelHandle=new THREE.Mesh(new THREE.CylinderGeometry(.045,.06,.42,7),mat("#69492e"));trowelHandle.rotation.x=Math.PI/2;trowelHandle.position.set(1.1,.26,-37.35);root.add(trowelHandle);
+    // Natural cave walls around a sealed white door; the elevator is inside the cave.
+    for(const side of [-1,1]){rock(side*8,1.4,-59,4,2.2,5.5,"#41493e");rock(side*10,3.3,-70,4.5,3,6,"#30382f");rock(side*7.8,3.8,-83,3.4,2.3,5.4,"#242b28");}
+    rock(0,6.2,-73,10.2,2,13,"#262d28");rock(-7,3.7,-78,3,2.8,12,"#29312b");rock(7,3.7,-78,3,2.8,12,"#29312b");
+    for(let i=0;i<6;i++)box(0,3.9,-74-i*3.1,12,.32,.28,"#414940");
+    floor(0,-89,11,9,"#303932");
+    for(const x of [-4.1,4.1])box(x,3,-88,.22,6,.22,"#59645b",true);
+    for(const x of [-2.8,2.8])box(x,2.4,-89,.16,4,.16,"#69756a");
+    for(const z of [-87,-90.5])box(0,2.3,z,5.8,.15,.18,"#69756a");
+    lamp(-3,2.5,-79,"#b0c1ad",.7,7);lamp(3,2.5,-86,"#b0c1ad",.7,7);
+    // Nine journal notes are physical pickups at the locations described in the notes.
+    const notes=[
+      ["l1-note-1","Journal note 1",-28,-2,0,"We were all sent in with a week of supplies, with generic gear and one personal keepsake. Some brought photos of loved ones, tools or religious symbols. I brought my journal to keep writing what I witnessed down here."],
+      ["l1-note-2","Journal note 2",-26,-35,0,"The air up here makes me lightheaded. I worry if we stay up here for too long, it will run dry. So we set out, light in hand."],
+      ["l1-note-3","Journal note 3",0,-36.8,0,"It's a selection process. Regardless of age, everyone has a chance of being sent. One in my group is in a wheelchair and another deaf in both ears. All sick, all inflicted, numbers on our backs."],
+      ["l1-note-4","Journal note 4",18,4,-1.8,"The place they placed us was foreign to us all. One island, always misty. We couldn't see anything below the mist, and we certainly didn't want to jump down to find out. The night sky has no star patterns we remember and two moons. We are hopelessly lost."],
+      ["l1-note-5","Journal note 5",24,-41,-3,"There are few bodies that return, and fewer places to bury them, lest we be walking on our dead."],
+      ["l1-note-6","Journal note 6",9,-49,0,"The news was in calamity. Nobody knew what to do, or who to pray to. It was as if we were abandoned by god."],
+      ["l1-note-7","Journal note 7",-18,-22,0,"It was here when we arrived. I'm unsure how the fire remains lit, or where the lamp receives its power, but we're not dismantling it to bring it with us. Where did the wood come from if there were no trees?"],
+      ["l1-note-8","Journal note 8",19,-42,-3,"A note that reads: \"The key is buried with the artist.\" It seems it's written with an unusually shaky hand."],
+      ["l1-note-9","Journal note 9",-8,-70,0,"It led down, an impossibility they said. But we had no other option. We all entered, holding our breath as the door closed behind us."]
+    ] as const;
+    for(const [id,label,x,z,y,text] of notes)item(id,label,"note",x,z,"#d6ccb0",text,3,undefined,y);
+    item("l1-house-key","House key","house-key",21,-41,"#d8c08a","A brass key lies beside the artist's grave. It fits the house door.",2.3,undefined,-3);
+    item("l1-orb-1","Pale orb 1","orb",-10,-3,"#a5d9c0","One of seven pale orbs needed to unlock the white door.",2.6);
+    item("l1-orb-2","Pale orb 2","orb",18,3,"#a5d9c0","A pale orb tucked beneath the overhang.",2.6,undefined,-1.8);
+    item("l1-orb-3","Pale orb 3","orb",-18,-22,"#a5d9c0","A pale orb resting inside the house.",2.6);
+    item("l1-orb-4","Pale orb 4","orb",-.8,-38.7,"#a5d9c0","A pale orb along the broken bridge.",2.5);
+    item("l1-orb-5","Pale orb 5","orb",25,-40,"#a5d9c0","A pale orb down on the graveyard cliff.",2.5,undefined,-3);
+    item("l1-orb-6","Pale orb 6","orb",8,-50,"#a5d9c0","A pale orb on the rough path below the graveyard.",2.6);
+    item("l1-orb-7","Pale orb 7","orb",-8,-55,"#a5d9c0","The last pale orb rests near the cave mouth.",2.6);
+    item("l1-house-door","House door","house-door",-18,-31,"#a67a47","Locked. Find the key behind the statue in the graveyard.",2.6);
+    item("l1-white-door","White door","white-door",0,-63,"#f0f1e9","Seven pale orbs unlock this white door in the middle of the island.",3.5);
+    item("l1-elevator","Cave elevator","elevator",0,-88,"#a6d8bb","Use the elevator to descend to Layer 2.",3.6);
+    const stalker=new THREE.Group();stalker.position.set(0,0,-82);root.add(stalker);
+    const creature=new THREE.Mesh(new THREE.CapsuleGeometry(.38,1.35,4,8),mat("#080b0b","#101819",.7));creature.position.y=1.05;stalker.add(creature);
+    const skull=new THREE.Mesh(new THREE.SphereGeometry(.36,12,10),mat("#050606","#101b1d",.5));skull.position.y=2;stalker.add(skull);
+    for(const side of [-1,1]){const eye=new THREE.Mesh(new THREE.SphereGeometry(.065,8,8),mat("#b7e8e6","#7ee8e2",2.2));eye.position.set(side*.14,2.03,-.31);stalker.add(eye);}
+    stalker.visible=false;lamp(-8,2,-3,"#e0a65d",.9,9);lamp(4,2,-36,"#ceac79",.65,8);
     return {root,layer,colliders,floors,hazards,items,spawn:new THREE.Vector3(0,1.65,12),stalker};
   }
-
   floor(0,-13,102,101,"#252a2d");
   const perimeter="#11181b";
   box(-51,3,-14,1,6,103,perimeter,true);box(51,3,-14,1,6,103,perimeter,true);
