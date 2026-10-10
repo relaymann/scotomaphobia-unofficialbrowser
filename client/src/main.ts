@@ -4,7 +4,7 @@ import "./style.css";
 import { buildWorld, type BuiltWorld, type LayerId, type WorldItem } from "./world";
 type Checkpoint={layer:LayerId;x:number;y:number;z:number};
 type RunSave={version:1;layer:LayerId;collected:string[];openedGates:string[];mazeSolved:boolean;codeSolved:boolean;clues:Record<string,number>;checkpoint:Checkpoint;completed:boolean;deaths:number;startedAt:number;elapsedSeconds:number};
-type SharedEvent={type:"collect"|"gate"|"maze"|"code"|"checkpoint"|"complete"|"layer";id:string;layer:LayerId;digit?:number;checkpoint?:Checkpoint};
+type SharedEvent={type:"collect"|"gate"|"maze"|"code"|"checkpoint"|"complete"|"layer"|"reset";id:string;layer:LayerId;digit?:number;checkpoint?:Checkpoint};
 
 const root=document.querySelector<HTMLDivElement>("#scene")!,intro=document.querySelector<HTMLElement>("#intro")!,hud=document.querySelector<HTMLElement>("#hud")!;
 const startButton=document.querySelector<HTMLButtonElement>("#start")!,status=document.querySelector<HTMLElement>("#status")!,objective=document.querySelector<HTMLElement>("#objective")!;
@@ -139,6 +139,13 @@ function activateCheckpoint(item:WorldItem){
 }
 function applySharedEvent(event:SharedEvent){
   if(!event||!(event.layer===1||event.layer===2)||typeof event.id!=="string")return;
+  if(event.type==="reset"&&event.id==="expedition-reset"){
+    save=freshSave();elapsedBase=0;sessionStartedAt=active?Date.now():0;paused=false;
+    pauseScreen.classList.remove("visible");overlay.classList.remove("visible");endScreen.classList.remove("visible");puzzleMode=null;
+    installWorld(1,false);updateHud();
+    if(active){intro.classList.add("hidden");hud.classList.add("visible");}
+    toast("The co-op room has started a fresh expedition.");return;
+  }
   if(event.type==="layer"&&event.id==="layer-2-entry"){
     if(save.layer!==2){save.layer=2;save.checkpoint={layer:2,x:0,y:1.65,z:12};installWorld(2,false);toast("Your expedition has descended with the group.");}
     return;
@@ -152,9 +159,9 @@ function applySharedEvent(event:SharedEvent){
   if(world&&world.layer===event.layer){if(event.type==="gate"){const item=world.items.find(i=>i.id===event.id);if(item){removeCollider(item.blocker);if(item.leaf)item.leaf.visible=false;}}syncWorldVisuals();}
   saveRun();updateHud();
 }
-function connect(){
+function connect(resetRoom=false){
   const url=(import.meta.env.VITE_SERVER_URL as string|undefined)?.trim();if(!url){status.textContent="SOLO / LOCAL SAVE";return;}
-  if(socket){socket.disconnect();socket=undefined;}socket=io(url,{query:{room:roomCode},transports:["websocket","polling"],timeout:7000,reconnection:true});
+  if(socket){socket.disconnect();socket=undefined;}socket=io(url,{query:{room:roomCode,reset:resetRoom?"1":"0"},transports:["websocket","polling"],timeout:7000,reconnection:true});
   socket.on("connect",()=>status.textContent="MULTIPLAYER CONNECTED");socket.on("disconnect",()=>status.textContent="RECONNECTING");socket.on("connect_error",()=>status.textContent="SOLO MODE");
   socket.on("players:state",(list:{id:string;x:number;y:number;z:number;yaw:number;layer?:number}[])=>{
     if(!socket)return;const seen=new Set<string>();
@@ -254,7 +261,6 @@ copyRoomButton.addEventListener("click",async()=>{
   catch{roomInput.value=roomCode;roomInput.focus();roomInput.select();toast("Select and copy the room code from the field.");}
 });
 startButton.addEventListener("click",()=>{
-  if(save.completed)roomInput.value=createRoomCode();
   const requested=roomInput.value.trim().toUpperCase();
   if(!/^[A-Z0-9]{6}$/.test(requested)){toast("Room codes must be six letters or numbers.");return;}
   if(requested!==roomCode){
@@ -262,23 +268,19 @@ startButton.addEventListener("click",()=>{
     try{localStorage.setItem(ROOM_KEY,roomCode);}catch{}
     save=readSave(saveSlotKey());elapsedBase=save.elapsedSeconds;sessionStartedAt=0;activeRoomCode.textContent=roomCode;installWorld(save.layer,true);
   }
-  if(save.completed){save=freshSave();elapsedBase=0;sessionStartedAt=Date.now();installWorld(1,false);}
+  const resetExistingRun=save.completed;
+  if(resetExistingRun){save=freshSave();elapsedBase=0;sessionStartedAt=Date.now();installWorld(1,false);}
   if(!sessionStartedAt){elapsedBase=save.elapsedSeconds;sessionStartedAt=Date.now();}
-  active=true;paused=false;intro.classList.add("hidden");hud.classList.add("visible");connect();updateHud();if(innerWidth>700)renderer.domElement.requestPointerLock?.();
+  active=true;paused=false;intro.classList.add("hidden");hud.classList.add("visible");connect(resetExistingRun);updateHud();if(innerWidth>700)renderer.domElement.requestPointerLock?.();
 });
 document.querySelector("#resume")!.addEventListener("click",()=>{paused=false;pauseScreen.classList.remove("visible");if(active&&innerWidth>700)renderer.domElement.requestPointerLock?.();});
 document.querySelector("#pauseRestart")!.addEventListener("click",()=>{
-  roomCode=createRoomCode();roomInput.value=roomCode;activeRoomCode.textContent=roomCode;
-  try{localStorage.setItem(ROOM_KEY,roomCode);}catch{}
-  save=freshSave();elapsedBase=0;sessionStartedAt=Date.now();active=true;paused=false;pauseScreen.classList.remove("visible");installWorld(1,false);updateHud();connect();
-  toast("New expedition room: "+roomCode+". Share the code to rejoin together.");
+  save=freshSave();elapsedBase=0;sessionStartedAt=Date.now();active=true;paused=false;pauseScreen.classList.remove("visible");installWorld(1,false);updateHud();connect(true);
   if(innerWidth>700)renderer.domElement.requestPointerLock?.();
 });
 document.querySelector("#replay")!.addEventListener("click",()=>{
-  roomCode=createRoomCode();roomInput.value=roomCode;activeRoomCode.textContent=roomCode;
-  try{localStorage.setItem(ROOM_KEY,roomCode);}catch{}
-  save=freshSave();elapsedBase=0;sessionStartedAt=Date.now();active=true;paused=false;endScreen.classList.remove("visible");installWorld(1,false);connect();
-  intro.classList.add("hidden");hud.classList.add("visible");updateHud();toast("New expedition room: "+roomCode+". Share the code to rejoin together.");
+  save=freshSave();elapsedBase=0;sessionStartedAt=Date.now();active=true;paused=false;endScreen.classList.remove("visible");installWorld(1,false);connect(true);
+  intro.classList.add("hidden");hud.classList.add("visible");updateHud();
   if(innerWidth>700)renderer.domElement.requestPointerLock?.();
 });
 document.addEventListener("pointerlockchange",()=>locked=document.pointerLockElement===renderer.domElement);
