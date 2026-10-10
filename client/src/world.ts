@@ -57,7 +57,7 @@ export function buildWorld(layer:LayerId):BuiltWorld {
     const g=new THREE.Group();g.position.set(x,groundY,z);root.add(g);
     let leaf:THREE.Object3D|undefined,blocker:THREE.Box3|undefined;
     if(kind==="finish"||kind==="house-door"||kind==="white-door"){
-      const house=kind==="house-door",white=kind==="white-door",w=house?2.8:white?5.2:8;
+      const house=kind==="house-door",white=kind==="white-door",w=house?3.8:white?5.2:8;
       const height=house?3.1:4,frame=house?"#40352a":white?"#858b83":"#36463e",y=groundY+height/2;
       for(const side of [-1,1])box(x+side*w/2,y,z,.55,height,.85,frame,true);
       box(x,y+height/2,z,w+.55,.42,.9,frame,true);
@@ -100,6 +100,8 @@ export function buildWorld(layer:LayerId):BuiltWorld {
     // Mistbound island surface: spawn, house, broken bridge, graveyard, central white door and cave elevator.
     floor(-10,3,42,50,"#3b4435");floor(18,18,18,16,"#394234");
     floor(0,-17,25,25,"#42473a");floor(-18,-25,26,22,"#393f32");
+    // Low shelf behind the house matches the documented note location.
+    floor(-24,-36,12,8,"#383f32");
     floor(0,-26,11,8,"#343d32");floor(0,-53,26,12,"#343a31");
     floor(0,-70,17,28,"#222924");floor(0,-87,16,12,"#1d2421");
     const moonA=new THREE.Mesh(new THREE.SphereGeometry(2.1,18,14),new THREE.MeshBasicMaterial({color:"#c9d2ce"}));
@@ -108,7 +110,12 @@ export function buildWorld(layer:LayerId):BuiltWorld {
     moonB.position.set(35,24,-54);root.add(moonB);
     for(let i=0;i<22;i++){const side=i%2===0?-1:1,x=side*(17+(i%5)*2.1),z=24-Math.floor(i/2)*8.1;rock(x,1.7,z,3.2+(i%2),2.6+(i%3)*.4,4.8,"#50574b");if(i%3===0)tree(side*(14+(i%4)*2),z+2,.72+(i%3)*.1);}
     // Hidden under-terrain alcove on the right, but with an accessible entrance and walkable floor.
-    floor(18,4,13,13,"#2b342c",-1.8);rock(18,1.2,-1,7,1.5,7,"#303930");
+    floor(18,4,13,13,"#2b342c",-1.8);
+    // Raised rock overhang leaves headroom underneath; stepped ledges return to the island surface.
+    rock(18,1.9,-1,7,1.5,7,"#303930");
+    floor(18,7,4,3,"#343b32",-1.2);
+    floor(18,9.5,4,3,"#44493b",-.6);
+    floor(18,12,8,4,"#394234",0);
     rock(12,-.2,4,2.5,1.2,4,"#485044");rock(24,-.2,4,2.5,1.2,4,"#485044");
     for(let i=0;i<9;i++){const z=-8-i*5.4;box(0,.015,z,5.1,.04,3.2,i%2===0?"#534d3e":"#48483b");for(const side of [-1,1])rock(side*(5.3+(i%3)*.5),.48,z,1.8,.7,2.1,"#444c3e");}
     // House shell and locked front door.
@@ -162,7 +169,7 @@ export function buildWorld(layer:LayerId):BuiltWorld {
       ["l1-note-6","Journal note 6",9,-49,0,"The news was in calamity. Nobody knew what to do, or who to pray to. It was as if we were abandoned by god."],
       ["l1-note-7","Journal note 7",-18,-22,0,"It was here when we arrived. I'm unsure how the fire remains lit, or where the lamp receives its power, but we're not dismantling it to bring it with us. Where did the wood come from if there were no trees?"],
       ["l1-note-8","Journal note 8",19,-42,-3,"A note that reads: \"The key is buried with the artist.\" It seems it's written with an unusally shaky hand."],
-      ["l1-note-9","Journal note 9",-8,-70,0,"It led down, an impossibility they said. But we had no other option. We all entered, holding our breath as the door closed behind us."]
+      ["l1-note-9","Journal note 9",-2.5,-69,0,"It led down, an impossibility they said. But we had no other option. We all entered, holding our breath as the door closed behind us."]
     ] as const;
     for(const [id,label,x,z,y,text] of notes)item(id,label,"note",x,z,"#d6ccb0",text,3,undefined,y);
     item("l1-house-key","House key","house-key",21,-41,"#d8c08a","A brass key lies beside the artist's grave. It fits the house door.",2.3,undefined,-3);
@@ -171,8 +178,8 @@ export function buildWorld(layer:LayerId):BuiltWorld {
     item("l1-orb-3","Pale orb 3","orb",-18,-22,"#a5d9c0","A pale orb resting inside the house.",2.6);
     item("l1-orb-4","Pale orb 4","orb",-.8,-38.7,"#a5d9c0","A pale orb along the broken bridge.",2.5);
     item("l1-orb-5","Pale orb 5","orb",25,-40,"#a5d9c0","A pale orb down on the graveyard cliff.",2.5,undefined,-3);
-    item("l1-orb-6","Pale orb 6","orb",8,-50,"#a5d9c0","A pale orb on the rough path below the graveyard.",2.6);
-    item("l1-orb-7","Pale orb 7","orb",-8,-55,"#a5d9c0","The last pale orb rests near the cave mouth.",2.6);
+    item("l1-orb-6","Pale orb 6","orb",11,-49,"#a5d9c0","A pale orb on the rough path below the graveyard.",2.6);
+    item("l1-orb-7","Pale orb 7","orb",-1,-56,"#a5d9c0","The last pale orb rests near the cave mouth.",2.6);
     item("l1-house-door","House door","house-door",-18,-31,"#a67a47","Locked. Find the key behind the statue in the graveyard.",2.6);
     item("l1-white-door","White door","white-door",0,-63,"#f0f1e9","Seven pale orbs unlock this white door in the middle of the island.",3.5);
     item("l1-elevator","Cave elevator","elevator",0,-88,"#a6d8bb","Use the elevator to descend to Layer 2.",3.6);
