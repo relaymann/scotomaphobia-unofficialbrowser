@@ -1,0 +1,14 @@
+import express from 'express';
+import cors from 'cors';
+import {createServer} from 'node:http';
+import {Server} from 'socket.io';
+const app=express();app.disable('x-powered-by');app.use(express.json({limit:'32kb'}));
+const origins=(process.env.CLIENT_ORIGIN??'http://localhost:5173').split(',').map(s=>s.trim()).filter(Boolean);
+app.use(cors({origin(origin,cb){if(!origin||origins.includes('*')||origins.includes(origin))cb(null,true);else cb(new Error('Origin not allowed'))}}));
+const http=createServer(app);const io=new Server(http,{cors:{origin:origins.includes('*')?'*':origins,methods:['GET','POST']},maxHttpBufferSize:100000});
+type Player={id:string;x:number;y:number;z:number;yaw:number;updatedAt:number};const players=new Map<string,Player>();
+app.get('/health',(_req,res)=>res.json({ok:true,service:'scotomaphobia-realtime',players:players.size,uptimeSeconds:Math.floor(process.uptime())}));
+const number=(v:unknown,min:number,max:number)=>typeof v==='number'&&Number.isFinite(v)&&v>=min&&v<=max?v:undefined;
+const snapshot=()=>[...players.values()].map(({updatedAt:_,...p})=>p);
+io.on('connection',s=>{players.set(s.id,{id:s.id,x:0,y:1.65,z:5,yaw:0,updatedAt:Date.now()});s.emit('players:state',snapshot());s.broadcast.emit('players:state',snapshot());s.on('player:move',(v:unknown)=>{if(!v||typeof v!=='object')return;const p=v as Record<string,unknown>,x=number(p.x,-250,250),y=number(p.y,-10,100),z=number(p.z,-250,250),yaw=number(p.yaw,-1000,1000),old=players.get(s.id);if(x===undefined||y===undefined||z===undefined||yaw===undefined||!old)return;const now=Date.now(),dt=Math.max((now-old.updatedAt)/1000,.02);if(Math.hypot(x-old.x,z-old.z)>Math.max(12,dt*12))return;players.set(s.id,{id:s.id,x,y,z,yaw,updatedAt:now});s.broadcast.emit('players:state',snapshot())});s.on('disconnect',()=>{players.delete(s.id);io.emit('players:state',snapshot())})});
+const port=Number(process.env.PORT??3001);http.listen(port,'0.0.0.0',()=>console.log('Realtime server listening on '+port));

@@ -1,0 +1,13 @@
+services:
+  - type: web
+    name: scotomaphobia-realtime
+    runtime: node
+    plan: free
+    buildCommand: npm install && npm run build:server
+    startCommand: npm run start:server
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_VERSION
+        value: "22"
+      - key: CLIENT_ORIGIN
+        value: http://localhost:5173
