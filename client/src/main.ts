@@ -13,6 +13,21 @@ const overlay=document.querySelector<HTMLElement>("#puzzleOverlay")!,puzzleTitle
 const puzzleBody=document.querySelector<HTMLElement>("#puzzleBody")!,puzzleHint=document.querySelector<HTMLElement>("#puzzleHint")!,pauseScreen=document.querySelector<HTMLElement>("#pauseScreen")!;
 const endScreen=document.querySelector<HTMLElement>("#endScreen")!,timerLabel=document.querySelector<HTMLElement>("#timer")!,layerLabel=document.querySelector<HTMLElement>("#layerLabel")!;
 const interactButton=document.querySelector<HTMLButtonElement>("#interact")!;
+const roomInput=document.querySelector<HTMLInputElement>("#roomCode")!;
+const newRoomButton=document.querySelector<HTMLButtonElement>("#newRoom")!;
+const copyRoomButton=document.querySelector<HTMLButtonElement>("#copyRoom")!;
+const activeRoomCode=document.querySelector<HTMLElement>("#activeRoomCode")!;
+const ROOM_KEY="scotomaphobia-room-code";
+function createRoomCode(){return Math.random().toString(36).slice(2,8).toUpperCase().padEnd(6,"X");}
+function restoreRoomCode(){
+  try{const existing=localStorage.getItem(ROOM_KEY)?.toUpperCase();if(existing&&/^[A-Z0-9]{6}$/.test(existing))return existing;
+    const generated=createRoomCode();localStorage.setItem(ROOM_KEY,generated);return generated;
+  }catch{return createRoomCode();}
+}
+let roomCode=restoreRoomCode();
+const initialRoomCode=roomCode;
+roomInput.value=roomCode;activeRoomCode.textContent=roomCode;
+const saveSlotKey=()=> "scotomaphobia-run-v1:"+roomCode;
 const scene=new THREE.Scene();scene.background=new THREE.Color("#111713");scene.fog=new THREE.FogExp2("#111713",0.018);
 const camera=new THREE.PerspectiveCamera(74,innerWidth/innerHeight,0.08,220);camera.rotation.order="YXZ";
 const renderer=new THREE.WebGLRenderer({antialias:innerWidth>800,powerPreference:"high-performance"});
@@ -21,9 +36,14 @@ scene.add(new THREE.HemisphereLight("#9caea7","#151514",0.27));
 const moon=new THREE.DirectionalLight("#a9b9ac",0.32);moon.position.set(-10,22,7);scene.add(moon);
 
 const freshSave=():RunSave=>({version:1,layer:1,collected:[],openedGates:[],mazeSolved:false,codeSolved:false,clues:{},checkpoint:{layer:1,x:0,y:1.65,z:12},completed:false,deaths:0,startedAt:Date.now(),elapsedSeconds:0});
-function readSave():RunSave{
+function readSave(storageKey:string,migrateLegacy=false):RunSave{
   try{
-    const raw=localStorage.getItem("scotomaphobia-run-v1");if(!raw)return freshSave();
+    let raw=localStorage.getItem(storageKey);
+    if(!raw&&migrateLegacy&&storageKey==="scotomaphobia-run-v1:"+initialRoomCode){
+      raw=localStorage.getItem("scotomaphobia-run-v1");
+      if(raw)localStorage.setItem(storageKey,raw);
+    }
+    if(!raw)return freshSave();
     const p=JSON.parse(raw) as Partial<RunSave>;
     if(p.version!==1||(p.layer!==1&&p.layer!==2)||!Array.isArray(p.collected)||!Array.isArray(p.openedGates))return freshSave();
     const base=freshSave(),cp=p.checkpoint;
@@ -36,7 +56,7 @@ function readSave():RunSave{
       startedAt:Number.isFinite(p.startedAt)?Number(p.startedAt):Date.now()};
   }catch{return freshSave();}
 }
-let save=readSave(),elapsedBase=save.elapsedSeconds,sessionStartedAt=0,world:BuiltWorld|null=null;
+let save=readSave(saveSlotKey(),true),elapsedBase=save.elapsedSeconds,sessionStartedAt=0,world:BuiltWorld|null=null;
 let socket:ReturnType<typeof io>|undefined;
 const remotes=new Map<string,THREE.Mesh>(),keys=new Set<string>();
 let active=false,paused=false,locked=false,yaw=0,pitch=0,playerX=0,playerZ=12,feetY=0,verticalVelocity=0,onGround=true;
@@ -46,7 +66,7 @@ let toastTimer=0,previousFrameTime=performance.now(),lastUiSecond=-1,lastHazardA
 
 function elapsedSeconds(){return elapsedBase+(active&&!paused&&sessionStartedAt?Math.max(0,Math.floor((Date.now()-sessionStartedAt)/1000)):0);}
 function elapsedText(){const s=elapsedSeconds();return String(Math.floor(s/60)).padStart(2,"0")+":"+String(s%60).padStart(2,"0");}
-function saveRun(){save.elapsedSeconds=elapsedSeconds();try{localStorage.setItem("scotomaphobia-run-v1",JSON.stringify(save));}catch{status.textContent="LOCAL SAVE UNAVAILABLE";}}
+function saveRun(){save.elapsedSeconds=elapsedSeconds();try{localStorage.setItem(saveSlotKey(),JSON.stringify(save));}catch{status.textContent="LOCAL SAVE UNAVAILABLE";}}
 function has(id:string){return save.collected.includes(id);}
 function addUnique(list:string[],value:string){if(!list.includes(value))list.push(value);}
 function removeCollider(c:THREE.Box3|undefined){if(!c||!world)return;const i=world.colliders.indexOf(c);if(i>=0)world.colliders.splice(i,1);}
@@ -80,7 +100,7 @@ function updateHud(){
     if(countPrefix("l1-relay-")<3)objective.textContent="Recover three field relays along the broken mountain approach.";
     else if(!save.openedGates.includes("l1-bunker-gate"))objective.textContent="Return to the sealed bunker door and open its relay lock.";
     else if(!save.mazeSolved)objective.textContent="Trace the maintenance maze to release the flooded passage.";
-    else objective.textContent="Cross the flooded chamber by jumping between stone platforms. Reach the descent gate.";
+    else objective.textContent="Activate the flood chamber checkpoint, then jump across the stone platforms to reach the descent gate.";
   }else{
     if(countPrefix("l2-crystal-")<7)objective.textContent="Find all seven pale crystals scattered around the monolith field.";
     else if(countPrefix("l2-clue-")<4)objective.textContent="Read all four inscriptions to learn the seal code.";
@@ -91,6 +111,7 @@ function updateHud(){
     {done:countPrefix("l1-relay-")>=3,text:"Field relays  "+countPrefix("l1-relay-")+"/3"},
     {done:save.openedGates.includes("l1-bunker-gate"),text:"Bunker seal opened"},
     {done:save.mazeSolved,text:"Maintenance maze solved"},
+    {done:save.checkpoint.layer===1&&Math.abs(save.checkpoint.z+128.9)<2,text:"Flood chamber checkpoint activated"},
     {done:save.openedGates.includes("l1-maze-gate"),text:"Flood lock released"},
     {done:save.layer===2,text:"Descent to Layer 2"}
   ]:[
@@ -129,7 +150,7 @@ function applySharedEvent(event:SharedEvent){
 }
 function connect(){
   const url=(import.meta.env.VITE_SERVER_URL as string|undefined)?.trim();if(!url){status.textContent="SOLO / LOCAL SAVE";return;}
-  if(socket){socket.disconnect();socket=undefined;}socket=io(url,{transports:["websocket","polling"],timeout:7000,reconnection:true});
+  if(socket){socket.disconnect();socket=undefined;}socket=io(url,{query:{room:roomCode},transports:["websocket","polling"],timeout:7000,reconnection:true});
   socket.on("connect",()=>status.textContent="MULTIPLAYER CONNECTED");socket.on("disconnect",()=>status.textContent="RECONNECTING");socket.on("connect_error",()=>status.textContent="SOLO MODE");
   socket.on("players:state",(list:{id:string;x:number;y:number;z:number;yaw:number;layer?:number}[])=>{
     if(!socket)return;const seen=new Set<string>();
@@ -222,18 +243,39 @@ function finishRun(){
   sendEvent({type:"complete",id:"expedition-complete",layer:save.layer});saveRun();hud.classList.remove("visible");endScreen.classList.add("visible");
   document.querySelector<HTMLElement>("#endStats")!.textContent="TIME  "+elapsedText()+"     FALLS  "+save.deaths;if(document.pointerLockElement)document.exitPointerLock();
 }
+roomInput.addEventListener("input",()=>{roomInput.value=roomInput.value.toUpperCase().replace(/[^A-Z0-9]/g,"").slice(0,6);});
+newRoomButton.addEventListener("click",()=>{roomInput.value=createRoomCode();roomInput.focus();toastBox.classList.remove("visible");});
+copyRoomButton.addEventListener("click",async()=>{
+  try{await navigator.clipboard.writeText(roomCode);toast("Room code copied. Give it to the people joining your expedition.");}
+  catch{roomInput.value=roomCode;roomInput.focus();roomInput.select();toast("Select and copy the room code from the field.");}
+});
 startButton.addEventListener("click",()=>{
+  if(save.completed)roomInput.value=createRoomCode();
+  const requested=roomInput.value.trim().toUpperCase();
+  if(!/^[A-Z0-9]{6}$/.test(requested)){toast("Room codes must be six letters or numbers.");return;}
+  if(requested!==roomCode){
+    saveRun();roomCode=requested;
+    try{localStorage.setItem(ROOM_KEY,roomCode);}catch{}
+    save=readSave(saveSlotKey());elapsedBase=save.elapsedSeconds;sessionStartedAt=0;activeRoomCode.textContent=roomCode;installWorld(save.layer,true);
+  }
   if(save.completed){save=freshSave();elapsedBase=0;sessionStartedAt=Date.now();installWorld(1,false);}
   if(!sessionStartedAt){elapsedBase=save.elapsedSeconds;sessionStartedAt=Date.now();}
   active=true;paused=false;intro.classList.add("hidden");hud.classList.add("visible");connect();updateHud();if(innerWidth>700)renderer.domElement.requestPointerLock?.();
 });
 document.querySelector("#resume")!.addEventListener("click",()=>{paused=false;pauseScreen.classList.remove("visible");if(active&&innerWidth>700)renderer.domElement.requestPointerLock?.();});
 document.querySelector("#pauseRestart")!.addEventListener("click",()=>{
-  save=freshSave();elapsedBase=0;sessionStartedAt=Date.now();active=true;paused=false;pauseScreen.classList.remove("visible");installWorld(1,false);updateHud();if(innerWidth>700)renderer.domElement.requestPointerLock?.();
+  roomCode=createRoomCode();roomInput.value=roomCode;activeRoomCode.textContent=roomCode;
+  try{localStorage.setItem(ROOM_KEY,roomCode);}catch{}
+  save=freshSave();elapsedBase=0;sessionStartedAt=Date.now();active=true;paused=false;pauseScreen.classList.remove("visible");installWorld(1,false);updateHud();connect();
+  toast("New expedition room: "+roomCode+". Share the code to rejoin together.");
+  if(innerWidth>700)renderer.domElement.requestPointerLock?.();
 });
 document.querySelector("#replay")!.addEventListener("click",()=>{
-  save=freshSave();elapsedBase=0;sessionStartedAt=Date.now();active=true;paused=false;endScreen.classList.remove("visible");installWorld(1,false);
-  intro.classList.add("hidden");hud.classList.add("visible");updateHud();if(innerWidth>700)renderer.domElement.requestPointerLock?.();
+  roomCode=createRoomCode();roomInput.value=roomCode;activeRoomCode.textContent=roomCode;
+  try{localStorage.setItem(ROOM_KEY,roomCode);}catch{}
+  save=freshSave();elapsedBase=0;sessionStartedAt=Date.now();active=true;paused=false;endScreen.classList.remove("visible");installWorld(1,false);connect();
+  intro.classList.add("hidden");hud.classList.add("visible");updateHud();toast("New expedition room: "+roomCode+". Share the code to rejoin together.");
+  if(innerWidth>700)renderer.domElement.requestPointerLock?.();
 });
 document.addEventListener("pointerlockchange",()=>locked=document.pointerLockElement===renderer.domElement);
 document.addEventListener("mousemove",e=>{if(active&&!paused&&locked&&!puzzleMode){yaw-=e.movementX*.0022;pitch=THREE.MathUtils.clamp(pitch-e.movementY*.0022,-1.18,1.18);}});

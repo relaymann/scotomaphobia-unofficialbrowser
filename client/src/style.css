@@ -12,6 +12,16 @@ h1{font:800 clamp(65px,10vw,112px)/.78 'Barlow Condensed',sans-serif;margin:27px
 main p{font-size:11px;line-height:1.9;color:#c5c3b8;max-width:365px}
 main button,.puzzle-card>button{background:var(--rust);border:1px solid #d18b64;color:#0a0b09;padding:15px 20px;margin-top:16px}
 main button:hover,.puzzle-card>button:hover{filter:brightness(1.12)}small{display:block;color:#aaa99e;font-size:9px;line-height:1.9;margin-top:20px}
+.room-controls{margin:18px 0 0;max-width:345px}
+.room-controls label{display:block;font-size:8px;letter-spacing:.12em;color:#c98b67}
+.room-controls label small{font-size:8px;letter-spacing:0;text-transform:none;margin-top:5px;color:#aaa99e}
+.room-input-row{display:flex;gap:7px;margin-top:9px}
+.room-input-row input{flex:1;min-width:0;background:#0a0f0cdd;border:1px solid #75817688;color:#e6e4d8;padding:11px 12px;font:500 13px 'DM Mono',monospace;letter-spacing:.2em;text-transform:uppercase}
+.room-input-row input:focus{outline:1px solid #d0a079;border-color:#d0a079}
+.room-action{margin:0;padding:0 12px;background:#1a211d;border:1px solid #758176;color:#e6e4d8}
+.room-badge{display:flex;align-items:center;gap:8px;margin-top:10px;padding-top:9px;border-top:1px solid #ffffff1e;font-size:8px;letter-spacing:.1em;color:#acb4a8}
+.room-badge b{font-size:10px;color:#e0d8c9;letter-spacing:.16em}
+.room-badge button{margin-left:auto;padding:5px 8px;background:#18201a;color:#d5d9cf;border:1px solid #617060;font-size:8px;pointer-events:auto}
 #hud{position:absolute;left:30px;bottom:28px;width:min(355px,calc(100vw - 60px));padding:15px 17px 13px;border-left:2px solid var(--rust);background:#090c0adf;opacity:0;pointer-events:none;transition:opacity .2s}
 #hud.visible{opacity:1}.hud-top{display:flex;justify-content:space-between;gap:16px;align-items:center;margin-bottom:15px}
 .hud-top b,.objective-kicker{font-size:8px;letter-spacing:.13em;color:#c98b67}#timer{font-size:9px;color:#8d9990}

@@ -11,12 +11,18 @@
 <main id="intro">
 <p class="eyebrow">FIELD LOG 01 / UNKNOWN TERRITORY</p><h1>THE DARK<br><em>HAS SHAPE.</em></h1>
 <p>Recover the relays. Descend beneath the mountain. Follow the marks without letting the dark follow you.</p>
+<div class="room-controls">
+<label for="roomCode">CO-OP ROOM CODE <small>Share this six-character code so others join your expedition.</small></label>
+<div class="room-input-row"><input id="roomCode" type="text" maxlength="6" minlength="6" autocomplete="off" spellcheck="false" aria-label="Six-character co-op room code"><button id="newRoom" type="button" class="room-action">NEW</button></div>
+</div>
 <button id="start">ENTER THE WOODS ↗</button>
 <small>PC: WASD move · Mouse look · Space jump · Shift run · E interact · Esc pause<br>Touch: left joystick move · drag right side to look · tap E to interact</small>
 </main>
 <aside id="hud" aria-live="polite"><div class="hud-top"><b id="layerLabel">LAYER 1 / THE THRESHOLD</b><span id="timer">00:00</span></div>
 <b class="objective-kicker">CURRENT OBJECTIVE</b><p id="objective">Recover three field relays along the broken mountain approach.</p>
-<div id="objectiveList"></div><span id="prompt"></span></aside>
+<div id="objectiveList"></div>
+<div class="room-badge">CO-OP ROOM <b id="activeRoomCode"></b><button id="copyRoom" type="button">COPY</button></div>
+<span id="prompt"></span></aside>
 <div id="toast" role="status" aria-live="polite"></div><div id="stick" aria-label="Movement joystick"><span>MOVE</span><i></i></div>
 <button id="interact" aria-label="Interact">E</button>
 <section id="puzzleOverlay" class="overlay" aria-modal="true" role="dialog" aria-labelledby="puzzleTitle"><div class="puzzle-card">
