@@ -148,6 +148,7 @@ function applySharedEvent(event:SharedEvent){
   saveRun();updateHud();
 }
 function connect(resetRoom=false){
+  if(resetRoom&&socket?.connected){socket.emit("game:event",{type:"reset",id:"expedition-reset",layer:1});return;}
   const url=(import.meta.env.VITE_SERVER_URL as string|undefined)?.trim();if(!url){status.textContent="SOLO / LOCAL SAVE";return;}
   if(socket){socket.disconnect();socket=undefined;}socket=io(url,{query:{room:roomCode,reset:resetRoom?"1":"0"},transports:["websocket","polling"],timeout:7000,reconnection:true});
   socket.on("connect",()=>status.textContent="MULTIPLAYER CONNECTED");socket.on("disconnect",()=>status.textContent="RECONNECTING");socket.on("connect_error",()=>status.textContent="SOLO MODE");
@@ -184,7 +185,7 @@ puzzleBody.addEventListener("click",event=>{
   if(key==="clear")codeInput=codeInput.slice(0,-1);
   else if(key==="enter"){
     if(codeInput==="2714"){
-      save.codeSolved=true;openGate("l2-finish-gate");sendEvent({type:"code",id:"l2-seal-code",layer:2});
+      save.codeSolved=true;sendEvent({type:"code",id:"l2-seal-code",layer:2,digit:2714});openGate("l2-finish-gate");
       saveRun();closePuzzle();updateHud();toast("The terminal accepts the code. The final gate opens.");
     }else{puzzleHint.textContent="Incorrect sequence. Recheck the inscriptions.";codeInput="";}
   }else if(key&&/^[0-9]$/.test(key)&&codeInput.length<4)codeInput+=key;
