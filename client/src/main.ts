@@ -143,7 +143,7 @@ function applySharedEvent(event:SharedEvent){
   if(event.type==="collect"){addUnique(save.collected,event.id);if(typeof event.digit==="number"&&event.digit>=1&&event.digit<=9)save.clues[event.id]=event.digit;}
   else if(event.type==="gate")addUnique(save.openedGates,event.id);
   else if(event.type==="code")save.codeSolved=true;
-  else if(event.type==="complete")save.completed=true;
+  else if(event.type==="complete"){finishRun(false);return;}
   if(world&&world.layer===event.layer){if(event.type==="gate"){const item=world.items.find(i=>i.id===event.id);if(item){removeCollider(item.blocker);if(item.leaf)item.leaf.visible=false;}}syncWorldVisuals();}
   saveRun();updateHud();
 }
@@ -226,9 +226,11 @@ function interact(){
   if(item.kind==="finish"){if(!save.codeSolved){toast("The final gate is still sealed.");return;}finishRun();return;}
 }
 function changeLayer(layer:LayerId){if(layer===2)sendEvent({type:"layer",id:"layer-2-entry",layer:2});save.layer=layer;save.checkpoint={layer,x:0,y:1.65,z:12};installWorld(layer,false);toast("The monolith field stretches into the dark.");saveRun();}
-function finishRun(){
+function finishRun(broadcast=true){
+  if(save.completed)return;
   save.elapsedSeconds=elapsedSeconds();elapsedBase=save.elapsedSeconds;sessionStartedAt=0;save.completed=true;active=false;paused=false;
-  sendEvent({type:"complete",id:"expedition-complete",layer:save.layer});saveRun();hud.classList.remove("visible");endScreen.classList.add("visible");
+  if(broadcast)sendEvent({type:"complete",id:"expedition-complete",layer:save.layer});
+  saveRun();hud.classList.remove("visible");pauseScreen.classList.remove("visible");endScreen.classList.add("visible");
   document.querySelector<HTMLElement>("#endStats")!.textContent="TIME  "+elapsedText()+"     FALLS  "+save.deaths;if(document.pointerLockElement)document.exitPointerLock();
 }
 roomInput.addEventListener("input",()=>{roomInput.value=roomInput.value.toUpperCase().replace(/[^A-Z0-9]/g,"").slice(0,6);});

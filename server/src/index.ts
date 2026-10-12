@@ -41,7 +41,7 @@ io.on("connection",s=>{
   if(type==="reset"&&id==="expedition-reset"){getRoomEvents(room).clear();s.to(room).emit("game:event",{type,id,layer:1} satisfies SharedEvent);return;}
   const allowed=(type==="collect"&&/^(l1-note-[1-9]|l1-orb-[1-7]|l1-house-key|l2-crystal-[1-7]|l2-clue-[1-4])$/.test(id))||
    (type==="gate"&&["l1-house-door","l1-white-door","l2-finish-gate"].includes(id))||
-   (type==="code"&&id==="l2-seal-code")||(type==="complete"&&id==="expedition-complete")||(type==="layer"&&id==="layer-2-entry"&&layer===2);
+   (type==="code"&&id==="l2-seal-code")||(type==="complete"&&id==="expedition-complete"&&layer===2)||(type==="layer"&&id==="layer-2-entry"&&layer===2);
   if(!allowed)return;const event:SharedEvent={type,id,layer};
   const digit=number(v.digit,1,9);if(type==="collect"&&digit!==undefined&&Number.isInteger(digit))event.digit=digit;
   getRoomEvents(room).set(type+":"+layer+":"+id,event);s.to(room).emit("game:event",event);
