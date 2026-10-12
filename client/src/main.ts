@@ -250,7 +250,7 @@ startButton.addEventListener("click",()=>{
   if(!sessionStartedAt){elapsedBase=save.elapsedSeconds;sessionStartedAt=Date.now();}
   active=true;paused=false;intro.classList.add("hidden");hud.classList.add("visible");connect(resetExistingRun);updateHud();if(innerWidth>700)renderer.domElement.requestPointerLock?.();
 });
-document.querySelector("#resume")!.addEventListener("click",()=>{paused=false;pauseScreen.classList.remove("visible");if(active&&innerWidth>700)renderer.domElement.requestPointerLock?.();});
+document.querySelector("#resume")!.addEventListener("click",()=>{if(active&&!save.completed)sessionStartedAt=Date.now();paused=false;pauseScreen.classList.remove("visible");if(active&&innerWidth>700)renderer.domElement.requestPointerLock?.();});
 document.querySelector("#pauseRestart")!.addEventListener("click",()=>{
   save=freshSave();elapsedBase=0;sessionStartedAt=Date.now();active=true;paused=false;pauseScreen.classList.remove("visible");installWorld(1,false);updateHud();connect(true);
   if(innerWidth>700)renderer.domElement.requestPointerLock?.();
